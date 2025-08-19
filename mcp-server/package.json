@@ -18,7 +18,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.2",
+    "@modelcontextprotocol/sdk": "^1.17.3",
     "@turn-based-mcp/shared": "file:../shared"
   },
   "devDependencies": {
