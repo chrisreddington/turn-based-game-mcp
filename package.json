@@ -25,14 +25,14 @@
   "ci": "npm run build --workspace=@turn-based-mcp/shared && npm run type-check && npm run build --workspace=@turn-based-mcp/web && npm run build --workspace=@turn-based-mcp/mcp-server && npm run ci:tests && npm run lint --workspace=@turn-based-mcp/web"
   },
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
-    "@testing-library/jest-dom": "^6.6.4",
+    "@eslint/js": "^9.34.0",
+    "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@vitest/ui": "^3.2.4",
-    "eslint": "^9.33.0",
+    "eslint": "^9.34.0",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.1",
+    "typescript-eslint": "^8.41.0",
     "vitest": "^3.2.4"
   },
   "engines": {
