@@ -13,6 +13,18 @@ import { RPSModels } from '../../../lib/3d/rps-models'
 import { Mini3DModel } from './Mini3DModel'
 import { createMouseInteraction, type MouseInteraction } from '../../../lib/3d/mouse-interaction'
 
+/**
+ * Get the emoji representation for an RPS choice
+ */
+function getChoiceEmoji(choice: 'rock' | 'paper' | 'scissors'): string {
+  const choiceEmojis: Record<'rock' | 'paper' | 'scissors', string> = {
+    rock: '🪨',
+    paper: '📄',
+    scissors: '✂️'
+  }
+  return choiceEmojis[choice]
+}
+
 interface RPS3DGameProps {
   gameState: RPSGameState | null
   onMove: (move: RPSMove) => void
@@ -957,6 +969,36 @@ export function RPS3DGame({
                     <span className="text-cyan-400">
                       {gameState.currentRound + 1} / {gameState.maxRounds}
                     </span>
+                  </div>
+                )}
+
+                {/* Round History */}
+                {gameState && gameState.currentRound > 0 && (
+                  <div className="pt-2 border-t border-slate-600">
+                    <div className="text-xs text-slate-300 mb-2 flex items-center space-x-1">
+                      <span>🏆</span>
+                      <span>Round History</span>
+                    </div>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {gameState.rounds.slice(0, gameState.currentRound).map((round, index) => (
+                        <div key={index} className="flex items-center justify-between bg-slate-800/50 p-1 rounded text-xs">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-slate-400">R{index + 1}:</span>
+                            <span title={`You chose ${round.player1Choice}`}>
+                              {getChoiceEmoji(round.player1Choice!)}
+                            </span>
+                            <span className="text-slate-500">vs</span>
+                            <span title={`AI chose ${round.player2Choice}`}>
+                              {getChoiceEmoji(round.player2Choice!)}
+                            </span>
+                          </div>
+                          <span className="text-xs">
+                            {round.winner === 'draw' ? '🤝' :
+                             round.winner === 'player1' ? '🎉' : '🤖'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
