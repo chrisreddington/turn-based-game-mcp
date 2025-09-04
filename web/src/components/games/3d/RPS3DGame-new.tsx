@@ -21,7 +21,6 @@ interface RPS3DGameProps {
   onReset?: () => void
   onNewGame?: () => void
   className?: string
-  difficulty?: string
 }
 
 /**
@@ -34,8 +33,7 @@ export function RPS3DGame({
   error = null,
   onReset,
   onNewGame,
-  className = '',
-  difficulty = 'medium'
+  className = ''
 }: RPS3DGameProps) {
   const sceneRef = useRef<THREE.Scene | null>(null)
   const gameGroupRef = useRef<THREE.Group | null>(null)
@@ -50,7 +48,6 @@ export function RPS3DGame({
   const [playerChoice, setPlayerChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [hoveredChoice, setHoveredChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [aiCycleIndex, setAICycleIndex] = useState(0)
-  const [mouseInteractionSetup, setMouseInteractionSetup] = useState(false)
 
   // Create hand geometry for different poses using enhanced models
   const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
@@ -94,35 +91,6 @@ export function RPS3DGame({
     return canvas
   }, [])
 
-  // Create billboarded text that always faces the camera
-  const create3DText = useCallback((text: string, position: THREE.Vector3, color: string = '#FFFFFF'): THREE.Mesh => {
-    const textCanvas = createTextTexture(text, 32, color)
-    const textTexture = new THREE.CanvasTexture(textCanvas)
-    textTexture.minFilter = THREE.LinearFilter
-    textTexture.magFilter = THREE.LinearFilter
-    
-    const textGeometry = new THREE.PlaneGeometry(0.8, 0.2)
-    const textMaterial = new THREE.MeshBasicMaterial({ 
-      map: textTexture, 
-      transparent: true,
-      alphaTest: 0.1,
-      side: THREE.DoubleSide
-    })
-    
-    const textMesh = new THREE.Mesh(textGeometry, textMaterial)
-    textMesh.position.copy(position)
-    
-    // Mark this mesh as a billboard so it can be updated in the render loop
-    textMesh.userData.isBillboard = true
-    
-    return textMesh
-  }, [createTextTexture])
-
-  // Create player/AI name labels
-  const createPlayerLabel = useCallback((name: string, position: THREE.Vector3, color: string = '#FFFFFF'): THREE.Mesh => {
-    return create3DText(name, position, color)
-  }, [create3DText])
-
   // Setup player choice models (interactable)
   const setupPlayerChoiceModels = useCallback(() => {
     if (!playerChoicesRef.current) return
@@ -132,11 +100,6 @@ export function RPS3DGame({
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
     const selectableObjects: THREE.Object3D[] = []
-
-    // Add player name label above the choices
-    const playerName = gameState?.players.find(p => p.id === 'player1')?.name || 'Player'
-    const playerLabel = createPlayerLabel(playerName, new THREE.Vector3(0, 1.5, 0), '#4A90E2')
-    playerChoicesRef.current.add(playerLabel)
 
     choices.forEach((choice, index) => {
       let model: THREE.Group
@@ -164,13 +127,23 @@ export function RPS3DGame({
       playerChoicesRef.current!.add(model)
       selectableObjects.push(model)
 
-      // Add 3D floating label that's visible from all directions
-      const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), '#FFFFFF')
-      playerChoicesRef.current!.add(label3D)
+      // Add floating label
+      const labelGeometry = new THREE.PlaneGeometry(0.6, 0.2)
+      const labelTexture = new THREE.CanvasTexture(createTextTexture(choice.toUpperCase(), 64, '#FFFFFF'))
+      const labelMaterial = new THREE.MeshBasicMaterial({ 
+        map: labelTexture, 
+        transparent: true,
+        alphaTest: 0.1
+      })
+      const labelMesh = new THREE.Mesh(labelGeometry, labelMaterial)
+      labelMesh.position.copy(model.position)
+      labelMesh.position.y += 0.8
+      labelMesh.lookAt(0, labelMesh.position.y, -5) // Face the camera
+      playerChoicesRef.current!.add(labelMesh)
     })
 
     return selectableObjects
-  }, [gameState, createPlayerLabel, create3DText])
+  }, [createTextTexture])
 
   // Setup AI choice models (all 3 visible with cycling lighting)
   const setupAIChoiceModels = useCallback(() => {
@@ -180,11 +153,6 @@ export function RPS3DGame({
     aiChoicesRef.current.clear()
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
-
-    // Add AI name label above the choices
-    const aiName = gameState?.players.find(p => p.id === 'ai')?.name || 'AI'
-    const aiLabel = createPlayerLabel(aiName, new THREE.Vector3(0, 1.5, 0), '#FF6B6B')
-    aiChoicesRef.current.add(aiLabel)
 
     choices.forEach((choice, index) => {
       let model: THREE.Group
@@ -208,11 +176,21 @@ export function RPS3DGame({
       
       aiChoicesRef.current!.add(model)
 
-      // Add 3D floating label that's visible from all directions
-      const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), '#FFFFFF')
-      aiChoicesRef.current!.add(label3D)
+      // Add floating label
+      const labelGeometry = new THREE.PlaneGeometry(0.6, 0.2)
+      const labelTexture = new THREE.CanvasTexture(createTextTexture(choice.toUpperCase(), 64, '#FFFFFF'))
+      const labelMaterial = new THREE.MeshBasicMaterial({ 
+        map: labelTexture, 
+        transparent: true,
+        alphaTest: 0.1
+      })
+      const labelMesh = new THREE.Mesh(labelGeometry, labelMaterial)
+      labelMesh.position.copy(model.position)
+      labelMesh.position.y += 0.8
+      labelMesh.lookAt(0, labelMesh.position.y, -5) // Face the camera
+      aiChoicesRef.current!.add(labelMesh)
     })
-  }, [gameState, createPlayerLabel, create3DText])
+  }, [createTextTexture])
 
   // Setup mouse interaction for player choices
   const setupMouseInteraction = useCallback((selectableObjects: THREE.Object3D[], container: HTMLElement, camera: THREE.Camera, scene: THREE.Scene) => {
@@ -268,27 +246,27 @@ export function RPS3DGame({
     platformMesh.receiveShadow = true
     gameGroup.add(platformMesh)
 
-    // Create player hand area (closer to camera, facing AI)
+    // Create player hand area (center-left)
     const playerHand = new THREE.Group()
-    playerHand.position.set(0, 0.5, 1.5)  // Closer to camera
+    playerHand.position.set(-2, 0.5, 0)
     playerHandRef.current = playerHand
     gameGroup.add(playerHand)
 
-    // Create AI hand area (farther from camera, facing player)
+    // Create AI hand area (center-right)
     const aiHand = new THREE.Group()
-    aiHand.position.set(0, 0.5, -1.5)  // Farther from camera
+    aiHand.position.set(2, 0.5, 0)
     aiHandRef.current = aiHand
     gameGroup.add(aiHand)
 
-    // Create player choice models area (front, closer to camera)
+    // Create player choice models area (front-left, closer to camera)
     const playerChoices = new THREE.Group()
-    playerChoices.position.set(0, 0.8, 2.5)  // Very close to camera for easy interaction
+    playerChoices.position.set(-2, 0.8, -2)
     playerChoicesRef.current = playerChoices
     gameGroup.add(playerChoices)
 
-    // Create AI choice models area (back, farther from camera)
+    // Create AI choice models area (front-right)
     const aiChoices = new THREE.Group()
-    aiChoices.position.set(0, 0.8, -2.5)  // Far from camera
+    aiChoices.position.set(2, 0.8, -2)
     aiChoicesRef.current = aiChoices
     gameGroup.add(aiChoices)
 
@@ -304,7 +282,13 @@ export function RPS3DGame({
       const currentRound = gameState.rounds[gameState.rounds.length - 1]
       if (!currentRound?.player1Choice) {
         const selectableObjects = setupPlayerChoiceModels()
-        // Note: Mouse interaction will be set up in the render function when we have access to the actual camera
+        // Setup mouse interaction once we have a container
+        setTimeout(() => {
+          const canvas = document.querySelector('canvas')
+          if (canvas && selectableObjects) {
+            setupMouseInteraction(selectableObjects, canvas, new THREE.PerspectiveCamera(), scene)
+          }
+        }, 100)
       }
       setupAIChoiceModels()
     }
@@ -350,11 +334,6 @@ export function RPS3DGame({
       return () => clearInterval(interval)
     }
   }, [animateAICycling, gameState, isCountingDown])
-
-  // Reset mouse interaction setup when game state changes
-  useEffect(() => {
-    setMouseInteractionSetup(false)
-  }, [gameState?.status])
 
   // Update hands based on game state
   const updateHands = useCallback(() => {
@@ -412,43 +391,16 @@ export function RPS3DGame({
     }
   }, [gameState, aiChoice, playerChoice, createHandGeometry])
 
-  // Update billboarded text to always face the camera
-  const updateBillboards = useCallback((scene: THREE.Scene, camera: THREE.Camera) => {
-    scene.traverse((object) => {
-      if (object.userData.isBillboard) {
-        object.lookAt(camera.position)
-      }
-    })
-  }, [])
-
   // Render function for the 3D scene
-  const handleRender = useCallback((scene: THREE.Scene, camera: THREE.Camera, renderer?: THREE.WebGLRenderer) => {
+  const handleRender = useCallback((scene: THREE.Scene, camera: THREE.Camera) => {
     // Initialize game if not done
     if (!gameGroupRef.current) {
       initializeGame(scene)
     }
 
-    // Update billboarded text to face the camera
-    updateBillboards(scene, camera)
-
-    // Set up mouse interaction if we have renderer and it's not set up yet
-    if (renderer && !mouseInteractionSetup && playerChoicesRef.current) {
-      const selectableObjects: THREE.Object3D[] = []
-      playerChoicesRef.current.children.forEach(child => {
-        if (child.userData?.type === 'player-choice') {
-          selectableObjects.push(child)
-        }
-      })
-      
-      if (selectableObjects.length > 0) {
-        setupMouseInteraction(selectableObjects, renderer.domElement, camera, scene)
-        setMouseInteractionSetup(true)
-      }
-    }
-
     // Update hands when game state changes
     updateHands()
-  }, [initializeGame, updateHands, setupMouseInteraction, mouseInteractionSetup, updateBillboards])
+  }, [initializeGame, updateHands])
 
   // Get game info for HUD
   const currentRound = gameState?.rounds[gameState.rounds.length - 1]
@@ -489,7 +441,6 @@ export function RPS3DGame({
         onReset={onReset}
         onNewGame={onNewGame}
         onRender={handleRender}
-        showHUD={false}  // Disable built-in HUD to avoid overlay conflicts
         sceneConfig={{
           background: '#1a1a2e',
           fog: { color: '#1a1a2e', near: 5, far: 15 }
@@ -500,164 +451,65 @@ export function RPS3DGame({
           maxDistance: 12
         }}
       >
-        {/* Custom UI overlays positioned to not interfere with 3D interaction */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Instructions overlay when waiting for player choice */}
-          {gameState?.status === 'playing' && !currentRound?.player1Choice && !isCountingDown && (
-            <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
-              <h3 className="text-lg font-bold text-center mb-4">Choose Your Move</h3>
-              <p className="text-center text-sm text-slate-300 mb-4">
-                Click on one of the 3D models on your side (left) to make your choice
-              </p>
-              <p className="text-center text-xs text-slate-400">
-                The AI models on the right are cycling to show it's thinking...
-              </p>
-            </div>
-          )}
+        {/* Instructions overlay when waiting for player choice */}
+        {gameState?.status === 'playing' && !currentRound?.player1Choice && !isCountingDown && (
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white">
+            <h3 className="text-lg font-bold text-center mb-4">Choose Your Move</h3>
+            <p className="text-center text-sm text-slate-300 mb-4">
+              Click on one of the 3D models on your side (left) to make your choice
+            </p>
+            <p className="text-center text-xs text-slate-400">
+              The AI models on the right are cycling to show it's thinking...
+            </p>
+          </div>
+        )}
 
-          {/* Countdown overlay */}
-          {isCountingDown && (
-            <div className="absolute top-20 right-4 bg-black/80 backdrop-blur-sm rounded-xl p-4 text-white text-center max-w-xs">
-              <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <span className="text-sm text-blue-400">Revealing choices...</span>
-            </div>
-          )}
+        {/* Countdown overlay */}
+        {isCountingDown && (
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <span className="text-sm text-blue-400">Revealing choices...</span>
+          </div>
+        )}
 
-          {/* Round result display */}
-          {currentRound?.winner && (
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center max-w-md">
-              <h3 className="text-lg font-bold mb-2">Round Result</h3>
-              <div className="flex justify-center space-x-8 mb-4">
-                <div className="text-center">
-                  <div className="mb-1 flex justify-center">
-                    <Mini3DModel 
-                      choice={currentRound.player1Choice!} 
-                      size={48} 
-                      glowColor={currentRound.winner === 'player1' ? '#00FF00' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
-                    />
-                  </div>
-                  <div className="text-sm">You</div>
+        {/* Round result display */}
+        {currentRound?.winner && (
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center">
+            <h3 className="text-lg font-bold mb-2">Round Result</h3>
+            <div className="flex justify-center space-x-8 mb-4">
+              <div className="text-center">
+                <div className="mb-1 flex justify-center">
+                  <Mini3DModel 
+                    choice={currentRound.player1Choice!} 
+                    size={48} 
+                    glowColor={currentRound.winner === 'player1' ? '#00FF00' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
+                  />
                 </div>
-                <div className="text-2xl flex items-center">vs</div>
-                <div className="text-center">
-                  <div className="mb-1 flex justify-center">
-                    <Mini3DModel 
-                      choice={currentRound.player2Choice!} 
-                      size={48} 
-                      glowColor={currentRound.winner === 'ai' ? '#FF0000' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
-                    />
-                  </div>
-                  <div className="text-sm">AI</div>
-                </div>
+                <div className="text-sm">You</div>
               </div>
-              <div className={`text-lg font-bold ${
-                currentRound.winner === 'player1' ? 'text-green-400' :
-                currentRound.winner === 'ai' ? 'text-red-400' :
-                'text-yellow-400'
-              }`}>
-                {currentRound.winner === 'player1' ? 'You Win!' :
-                 currentRound.winner === 'ai' ? 'AI Wins!' :
-                 'Draw!'}
+              <div className="text-2xl flex items-center">vs</div>
+              <div className="text-center">
+                <div className="mb-1 flex justify-center">
+                  <Mini3DModel 
+                    choice={currentRound.player2Choice!} 
+                    size={48} 
+                    glowColor={currentRound.winner === 'ai' ? '#FF0000' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
+                  />
+                </div>
+                <div className="text-sm">AI</div>
               </div>
             </div>
-          )}
-
-          {/* Game info HUD - only show when not counting down */}
-          {!isCountingDown && (
-            <div className="absolute top-4 right-4">
-            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 text-white min-w-48">
-              {/* Game Status */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Status:</span>
-                  <span className={`font-medium ${
-                    gameState?.status === 'playing' ? 'text-green-400' :
-                    gameState?.status === 'finished' ? 'text-blue-400' :
-                    'text-yellow-400'
-                  }`}>
-                    {gameState?.status === 'playing' ? 'In Progress' :
-                     gameState?.status === 'finished' ? 'Game Complete' :
-                     'Waiting'}
-                  </span>
-                </div>
-
-                {/* Game ID */}
-                {gameState?.id && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Game ID:</span>
-                    <span className="text-cyan-400 font-mono text-xs">
-                      {gameState.id.slice(-8)}
-                    </span>
-                  </div>
-                )}
-
-                {/* Difficulty */}
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Difficulty:</span>
-                  <span className="text-orange-400 font-medium capitalize">
-                    {difficulty}
-                  </span>
-                </div>
-                
-                {/* Scores */}
-                {playerInfo && aiInfo && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">{playerInfo.name}:</span>
-                      <span className="text-blue-400 font-bold">{playerInfo.score}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">{aiInfo.name}:</span>
-                      <span className="text-red-400 font-bold">{aiInfo.score}</span>
-                    </div>
-                  </>
-                )}
-
-                {/* Current Round */}
-                {gameState && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Round:</span>
-                    <span className="text-cyan-400">
-                      {gameState.rounds.length} / {gameState.maxRounds}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Camera Controls Help */}
-              <div className="mt-4 pt-4 border-t border-slate-600">
-                <div className="text-xs text-slate-400 space-y-1">
-                  <div>🖱️ Drag: Rotate view</div>
-                  <div>🎯 Right-click: Pan</div>
-                  <div>🔍 Scroll: Zoom</div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              {(onReset || onNewGame) && (
-                <div className="mt-4 flex space-x-2">
-                  {onReset && (
-                    <button
-                      onClick={onReset}
-                      className="flex-1 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors duration-200"
-                    >
-                      Reset
-                    </button>
-                  )}
-                  {onNewGame && (
-                    <button
-                      onClick={onNewGame}
-                      className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors duration-200"
-                    >
-                      New Game
-                    </button>
-                  )}
-                </div>
-              )}
+            <div className={`text-lg font-bold ${
+              currentRound.winner === 'player1' ? 'text-green-400' :
+              currentRound.winner === 'ai' ? 'text-red-400' :
+              'text-yellow-400'
+            }`}>
+              {currentRound.winner === 'player1' ? 'You Win!' :
+               currentRound.winner === 'ai' ? 'AI Wins!' :
+               'Draw!'}
             </div>
           </div>
-          )}
-        </div>
+        )}
       </Game3DContainer>
     </div>
   )

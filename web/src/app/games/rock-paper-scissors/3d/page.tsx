@@ -232,6 +232,7 @@ export default function RockPaperScissors3DPage() {
             onReset={handleReset}
             onNewGame={handleNewGame}
             className="w-full h-full"
+            difficulty={difficulty}
           />
         </div>
       )}
