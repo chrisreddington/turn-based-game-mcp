@@ -4,10 +4,10 @@
 
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function TicTacToe3DPage() {
+function TicTacToe3DPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -40,5 +40,13 @@ export default function TicTacToe3DPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TicTacToe3DPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TicTacToe3DPageContent />
+    </Suspense>
   )
 }

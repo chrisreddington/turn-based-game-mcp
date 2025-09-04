@@ -42,8 +42,8 @@ export function UnifiedTicTacToe({
     deleteGame,
     setViewMode,
     resetGame,
-    clearError,
-    loadAvailableGames
+    clearError
+    // loadAvailableGames // Commented out as it's not used in this component
   } = useTicTacToeGame({
     initialViewMode,
     autoJoinGameId
@@ -203,7 +203,7 @@ export function UnifiedTicTacToe({
               onClick={handleSwitchTo3D}
               disabled={!is3DSupported}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              viewMode === '3d'
+              (viewMode as ViewMode) === '3d'
                 ? 'bg-purple-500 text-white'
                 : is3DSupported
                   ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
