@@ -149,6 +149,7 @@ export function UnifiedRockPaperScissors({
           error={error}
           onReset={resetGame}
           onNewGame={() => handleCreateGame('3d')}
+          onSwitchTo2D={handleSwitchTo2D}
           className="w-full h-full"
         />
       )

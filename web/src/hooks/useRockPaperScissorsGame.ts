@@ -247,7 +247,7 @@ export function useRockPaperScissorsGame(options: UseRockPaperScissorsGameOption
       const response = await fetch(`/api/games/rock-paper-scissors/${state.gameSession.gameState.id}/move`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(move)
+        body: JSON.stringify({ move, playerId: 'player1' })
       })
 
       if (!response.ok) {

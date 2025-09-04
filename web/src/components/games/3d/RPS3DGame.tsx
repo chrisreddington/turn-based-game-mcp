@@ -20,6 +20,8 @@ interface RPS3DGameProps {
   error?: string | null
   onReset?: () => void
   onNewGame?: () => void
+  /** Switch to 2D mode callback */
+  onSwitchTo2D?: () => void
   className?: string
   difficulty?: string
 }
@@ -34,6 +36,7 @@ export function RPS3DGame({
   error = null,
   onReset,
   onNewGame,
+  onSwitchTo2D,
   className = '',
   difficulty = 'medium'
 }: RPS3DGameProps) {
@@ -66,10 +69,32 @@ export function RPS3DGame({
 
   // Handle choice selection
   const handleChoiceSelect = useCallback((choice: 'rock' | 'paper' | 'scissors') => {
-    if (!onMove || gameState?.status !== 'playing') return
+    if (!onMove || !gameState) return
+
+    // Use same canMakeMove logic as 2D component
+    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+    const canMakeCurrentMove = gameState.status === 'playing' && 
+                              gameState.currentRound < gameState.maxRounds &&
+                              gameState.currentPlayerId === 'player1' &&
+                              !currentRoundData.player1Choice
+
+    if (!canMakeCurrentMove) {
+      // Player cannot make a move right now
+      return
+    }
 
     setPlayerChoice(choice)
     setIsCountingDown(true)
+
+    // Immediately switch to locked state to prevent further selections
+    // This will be handled by the useEffect that watches for playerChoice changes
+    
+    // Disable mouse interaction to prevent further clicks
+    if (mouseInteractionRef.current) {
+      mouseInteractionRef.current.dispose()
+      mouseInteractionRef.current = null
+      setMouseInteractionSetup(false)
+    }
 
     // Start countdown animation
     setTimeout(() => {
@@ -172,6 +197,83 @@ export function RPS3DGame({
     return selectableObjects
   }, [gameState, createPlayerLabel, create3DText])
 
+  // Setup player choice models in locked state (player has already chosen)
+  const setupPlayerChoiceModelsLocked = useCallback((selectedChoice: 'rock' | 'paper' | 'scissors') => {
+    if (!playerChoicesRef.current) return
+
+    // Clear existing models
+    playerChoicesRef.current.clear()
+
+    const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
+
+    // Add player name label above the choices
+    const playerName = gameState?.players.find(p => p.id === 'player1')?.name || 'Player'
+    const playerLabel = createPlayerLabel(playerName, new THREE.Vector3(0, 1.5, 0), '#4A90E2')
+    playerChoicesRef.current.add(playerLabel)
+
+    choices.forEach((choice, index) => {
+      let model: THREE.Group
+      switch (choice) {
+        case 'rock':
+          model = RPSModels.createRock(0.6)
+          break
+        case 'paper':
+          model = RPSModels.createPaper(0.6)
+          break
+        case 'scissors':
+          model = RPSModels.createScissors(0.6)
+          break
+      }
+
+      // Position models in a horizontal line
+      model.position.x = (index - 1) * 1.2
+      model.position.y = 0
+      model.userData = { choice, type: 'player-choice-locked', isSelected: choice === selectedChoice }
+      model.name = `player-choice-locked-${choice}`
+      
+      if (choice === selectedChoice) {
+        // Selected choice gets a strong green glow and is larger
+        model.scale.setScalar(1.3)
+        RPSModels.addGlowEffect(model, '#00FF00', 1.0)
+        
+        // Add "SELECTED" label above the chosen model
+        const selectedLabel = create3DText('SELECTED', new THREE.Vector3(model.position.x, 1.2, 0), '#00FF00')
+        playerChoicesRef.current!.add(selectedLabel)
+        
+        // Add a pulsing animation to the selected choice
+        model.userData.animateSelection = true
+      } else {
+        // Non-selected choices are significantly dimmed and smaller
+        model.scale.setScalar(0.5)
+        RPSModels.addGlowEffect(model, '#333333', 0.05)
+        
+        // Make the material much more transparent for non-selected choices
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => {
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.opacity = 0.2
+                  mat.transparent = true
+                }
+              })
+            } else if (child.material instanceof THREE.MeshStandardMaterial) {
+              child.material.opacity = 0.2
+              child.material.transparent = true
+            }
+          }
+        })
+      }
+      
+      playerChoicesRef.current!.add(model)
+
+      // Add 3D floating label
+      const labelColor = choice === selectedChoice ? '#00FF00' : '#888888'
+      const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), labelColor)
+      playerChoicesRef.current!.add(label3D)
+    })
+  }, [gameState, createPlayerLabel, create3DText])
+
   // Setup AI choice models (all 3 visible with cycling lighting)
   const setupAIChoiceModels = useCallback(() => {
     if (!aiChoicesRef.current) return
@@ -227,7 +329,7 @@ export function RPS3DGame({
       scene,
       container,
       selectableObjects,
-      onHover: (object, point) => {
+      onHover: (object, _point) => {
         if (object?.userData?.choice) {
           setHoveredChoice(object.userData.choice)
           // Add stronger glow on hover
@@ -242,7 +344,7 @@ export function RPS3DGame({
           setHoveredChoice(null)
         }
       },
-      onClick: (object, point) => {
+      onClick: (object, _point) => {
         if (object?.userData?.choice && object.userData.type === 'player-choice') {
           handleChoiceSelect(object.userData.choice)
         }
@@ -301,17 +403,24 @@ export function RPS3DGame({
 
     // Setup choice models if game is active
     if (gameState?.status === 'playing') {
-      const currentRound = gameState.rounds[gameState.rounds.length - 1]
-      if (!currentRound?.player1Choice) {
-        const selectableObjects = setupPlayerChoiceModels()
+      const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+      if (!currentRoundData.player1Choice && !playerChoice) {
+        // Player hasn't made their choice yet - show interactive models
+        setupPlayerChoiceModels()
         // Note: Mouse interaction will be set up in the render function when we have access to the actual camera
+      } else {
+        // Player has made their choice or is in the process of making it - show locked/selected state
+        const choiceToHighlight = currentRoundData.player1Choice || playerChoice
+        if (choiceToHighlight) {
+          setupPlayerChoiceModelsLocked(choiceToHighlight)
+        }
       }
       setupAIChoiceModels()
     }
 
     scene.add(gameGroup)
     sceneRef.current = scene
-  }, [gameState, setupPlayerChoiceModels, setupAIChoiceModels, setupMouseInteraction])
+  }, [gameState, setupPlayerChoiceModels, setupPlayerChoiceModelsLocked, setupAIChoiceModels, playerChoice])
 
   // Animate AI cycling through choices using enhanced models
   const animateAICycling = useCallback(() => {
@@ -344,8 +453,9 @@ export function RPS3DGame({
   useEffect(() => {
     if (!gameState?.status || gameState.status !== 'playing') return
 
-    const currentRound = gameState.rounds[gameState.rounds.length - 1]
-    if (!currentRound?.player1Choice && !isCountingDown) {
+    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+    // Continue AI cycling until the AI has made their choice (player2Choice exists)
+    if (!currentRoundData.player2Choice && !isCountingDown) {
       const interval = setInterval(animateAICycling, 800)
       return () => clearInterval(interval)
     }
@@ -356,36 +466,58 @@ export function RPS3DGame({
     setMouseInteractionSetup(false)
   }, [gameState?.status])
 
+  // Handle immediate switch to locked state when player makes a choice
+  useEffect(() => {
+    if (playerChoice && gameState?.status === 'playing' && playerChoicesRef.current) {
+      const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+      // Only switch to locked state if the player choice is for the current round
+      if (!currentRoundData.player1Choice) {
+        setupPlayerChoiceModelsLocked(playerChoice)
+      }
+    }
+  }, [playerChoice, gameState, setupPlayerChoiceModelsLocked])
+
+  // Reset player choice when starting a new round
+  useEffect(() => {
+    if (gameState?.status === 'playing') {
+      const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+      if (!currentRoundData.player1Choice && !currentRoundData.player2Choice) {
+        // New round started, reset player choice
+        setPlayerChoice(null)
+      }
+    }
+  }, [gameState?.currentRound, gameState?.status, gameState?.rounds])
+
   // Update hands based on game state
   const updateHands = useCallback(() => {
     if (!gameState || !playerHandRef.current || !aiHandRef.current) return
 
-    // Get current round
-    const currentRound = gameState.rounds[gameState.rounds.length - 1]
+    // Get current round using proper index
+    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
     
-    if (currentRound) {
+    if (currentRoundData) {
       // Update player hand
-      if (currentRound.player1Choice && playerChoice !== currentRound.player1Choice) {
+      if (currentRoundData.player1Choice && playerChoice !== currentRoundData.player1Choice) {
         // Clear previous hand
         playerHandRef.current.clear()
         
         // Add new hand
-        const playerHand = createHandGeometry(currentRound.player1Choice)
+        const playerHand = createHandGeometry(currentRoundData.player1Choice)
         playerHand.rotation.y = Math.PI / 4
         playerHandRef.current.add(playerHand)
-        setPlayerChoice(currentRound.player1Choice)
+        setPlayerChoice(currentRoundData.player1Choice)
       }
 
       // Update AI hand
-      if (currentRound.player2Choice && aiChoice !== currentRound.player2Choice) {
+      if (currentRoundData.player2Choice && aiChoice !== currentRoundData.player2Choice) {
         // Clear previous hand
         aiHandRef.current.clear()
         
         // Add new hand
-        const aiHandMesh = createHandGeometry(currentRound.player2Choice)
+        const aiHandMesh = createHandGeometry(currentRoundData.player2Choice)
         aiHandMesh.rotation.y = -Math.PI / 4
         aiHandRef.current.add(aiHandMesh)
-        setAIChoice(currentRound.player2Choice)
+        setAIChoice(currentRoundData.player2Choice)
       }
 
       // If round is complete, animate reveal
@@ -431,29 +563,51 @@ export function RPS3DGame({
     // Update billboarded text to face the camera
     updateBillboards(scene, camera)
 
-    // Set up mouse interaction if we have renderer and it's not set up yet
-    if (renderer && !mouseInteractionSetup && playerChoicesRef.current) {
-      const selectableObjects: THREE.Object3D[] = []
+    // Animate selected player choice with pulsing effect
+    if (playerChoicesRef.current) {
       playerChoicesRef.current.children.forEach(child => {
-        if (child.userData?.type === 'player-choice') {
-          selectableObjects.push(child)
+        if (child.userData?.animateSelection) {
+          const time = Date.now() * 0.003
+          const pulse = Math.sin(time) * 0.1 + 1.3
+          child.scale.setScalar(pulse)
         }
       })
-      
-      if (selectableObjects.length > 0) {
-        setupMouseInteraction(selectableObjects, renderer.domElement, camera, scene)
-        setMouseInteractionSetup(true)
+    }
+
+    // Set up mouse interaction if we have renderer and it's not set up yet
+    if (renderer && !mouseInteractionSetup && playerChoicesRef.current) {
+      // Only set up mouse interaction if player hasn't made their choice yet
+      const currentRoundData = gameState?.rounds[gameState.currentRound] || {}
+      if (!currentRoundData.player1Choice && !playerChoice) {
+        const selectableObjects: THREE.Object3D[] = []
+        playerChoicesRef.current.children.forEach(child => {
+          if (child.userData?.type === 'player-choice') {
+            selectableObjects.push(child)
+          }
+        })
+        
+        if (selectableObjects.length > 0) {
+          setupMouseInteraction(selectableObjects, renderer.domElement, camera, scene)
+          setMouseInteractionSetup(true)
+        }
       }
     }
 
     // Update hands when game state changes
     updateHands()
-  }, [initializeGame, updateHands, setupMouseInteraction, mouseInteractionSetup, updateBillboards])
+  }, [initializeGame, updateHands, setupMouseInteraction, mouseInteractionSetup, updateBillboards, gameState, playerChoice])
 
-  // Get game info for HUD
-  const currentRound = gameState?.rounds[gameState.rounds.length - 1]
+  // Get game info for HUD - use same logic as 2D component
+  const currentRound = gameState?.rounds[gameState.currentRound] || {}
   const playerScore = gameState?.scores.player1 || 0
   const aiScore = gameState?.scores.ai || 0
+  
+  // Calculate if player can make a move (same logic as 2D component)
+  const canMakeMove = gameState && !isLoading && 
+                     gameState.status === 'playing' && 
+                     gameState.currentRound < gameState.maxRounds &&
+                     gameState.currentPlayerId === 'player1' &&
+                     !currentRound.player1Choice
 
   const playerInfo = gameState ? {
     name: gameState.players.find(p => p.id === 'player1')?.name || 'Player',
@@ -502,15 +656,31 @@ export function RPS3DGame({
       >
         {/* Custom UI overlays positioned to not interfere with 3D interaction */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Instructions overlay when waiting for player choice */}
-          {gameState?.status === 'playing' && !currentRound?.player1Choice && !isCountingDown && (
+          {/* Instructions overlay when waiting for player choice - use same logic as 2D */}
+          {canMakeMove && !isCountingDown && !playerChoice && (
             <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
               <h3 className="text-lg font-bold text-center mb-4">Choose Your Move</h3>
               <p className="text-center text-sm text-slate-300 mb-4">
                 Click on one of the 3D models on your side (left) to make your choice
               </p>
               <p className="text-center text-xs text-slate-400">
-                The AI models on the right are cycling to show it's thinking...
+                The AI models on the right are cycling to show it&apos;s thinking...
+              </p>
+            </div>
+          )}
+
+          {/* Waiting for AI move overlay - use same logic as 2D */}
+          {gameState?.status === 'playing' && (playerChoice || currentRound.player1Choice) && !currentRound.player2Choice && (
+            <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                <h3 className="text-lg font-bold">Waiting for AI...</h3>
+              </div>
+              <p className="text-center text-sm text-slate-300 mb-2">
+                You chose: <span className="font-bold text-green-400">{(playerChoice || currentRound.player1Choice)?.toUpperCase()}</span>
+              </p>
+              <p className="text-center text-xs text-slate-400">
+                The AI is making its decision. Watch the cycling animations on the right!
               </p>
             </div>
           )}
@@ -564,7 +734,7 @@ export function RPS3DGame({
 
           {/* Game info HUD - only show when not counting down */}
           {!isCountingDown && (
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-4 right-4 pointer-events-auto">
             <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 text-white min-w-48">
               {/* Game Status */}
               <div className="space-y-2 text-sm">
@@ -585,9 +755,18 @@ export function RPS3DGame({
                 {gameState?.id && (
                   <div className="flex justify-between">
                     <span className="text-slate-300">Game ID:</span>
-                    <span className="text-cyan-400 font-mono text-xs">
-                      {gameState.id.slice(-8)}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-mono bg-slate-700 px-2 py-1 rounded text-cyan-400">
+                        {gameState.id}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(gameState.id)}
+                        className="text-xs text-slate-400 hover:text-white transition-colors duration-200"
+                        title="Copy Game ID"
+                      >
+                        📋
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -618,11 +797,24 @@ export function RPS3DGame({
                   <div className="flex justify-between">
                     <span className="text-slate-300">Round:</span>
                     <span className="text-cyan-400">
-                      {gameState.rounds.length} / {gameState.maxRounds}
+                      {gameState.currentRound + 1} / {gameState.maxRounds}
                     </span>
                   </div>
                 )}
               </div>
+
+              {/* View Mode Switcher */}
+              {onSwitchTo2D && (
+                <div className="mt-4 pt-4 border-t border-slate-600">
+                  <button
+                    onClick={onSwitchTo2D}
+                    className="inline-flex items-center space-x-2 px-3 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors duration-200 w-full justify-center"
+                  >
+                    <span>📱</span>
+                    <span>Switch to 2D</span>
+                  </button>
+                </div>
+              )}
 
               {/* Camera Controls Help */}
               <div className="mt-4 pt-4 border-t border-slate-600">
