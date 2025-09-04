@@ -1,5 +1,5 @@
 /**
- * 3D Rock-Paper-Scissors game component with enhanced 3D models and interactions
+ * 3D Rock-Paper-Scissors game component
  */
 
 'use client'
@@ -14,17 +14,23 @@ import { Mini3DModel } from './Mini3DModel'
 import { createMouseInteraction, type MouseInteraction } from '../../../lib/3d/mouse-interaction'
 
 interface RPS3DGameProps {
+  /** Current game state */
   gameState: RPSGameState | null
-  onMove: (move: RPSMove) => void
+  /** Move handler */
+  onMove?: (move: RPSMove) => void
+  /** Loading state */
   isLoading?: boolean
+  /** Error message */
   error?: string | null
+  /** Game control handlers */
   onReset?: () => void
   onNewGame?: () => void
+  /** Additional CSS classes */
   className?: string
 }
 
 /**
- * 3D Rock-Paper-Scissors game with enhanced models and click interaction
+ * 3D Rock-Paper-Scissors game with animated hands
  */
 export function RPS3DGame({
   gameState,
@@ -42,13 +48,12 @@ export function RPS3DGame({
   const playerChoicesRef = useRef<THREE.Group | null>(null)
   const aiChoicesRef = useRef<THREE.Group | null>(null)
   const mouseInteractionRef = useRef<MouseInteraction | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   
   const [aiChoice, setAIChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [isCountingDown, setIsCountingDown] = useState(false)
   const [playerChoice, setPlayerChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [hoveredChoice, setHoveredChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
-  const [aiCycleIndex, setAICycleIndex] = useState(0)
-  const [mouseInteractionSetup, setMouseInteractionSetup] = useState(false)
 
   // Create hand geometry for different poses using enhanced models
   const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
@@ -77,7 +82,7 @@ export function RPS3DGame({
   }, [onMove, gameState])
 
   // Create text texture for labels
-  const createTextTexture = useCallback((text: string, size: number, color: string): HTMLCanvasElement => {
+  const createTextTexture = (text: string, size: number, color: string): HTMLCanvasElement => {
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')!
     canvas.width = 256
@@ -90,7 +95,7 @@ export function RPS3DGame({
     context.fillText(text, canvas.width / 2, canvas.height / 2)
     
     return canvas
-  }, [])
+  }
 
   // Setup player choice models (interactable)
   const setupPlayerChoiceModels = useCallback(() => {
@@ -143,8 +148,45 @@ export function RPS3DGame({
       playerChoicesRef.current!.add(labelMesh)
     })
 
-    return selectableObjects
-  }, [createTextTexture])
+    // Setup mouse interaction
+    if (sceneRef.current && containerRef.current) {
+      // Dispose existing mouse interaction
+      if (mouseInteractionRef.current) {
+        mouseInteractionRef.current.dispose()
+      }
+
+      // Create new mouse interaction
+      const cameraElement = containerRef.current.querySelector('canvas')?.parentElement
+      if (cameraElement) {
+        mouseInteractionRef.current = createMouseInteraction({
+          camera: new THREE.PerspectiveCamera(), // Will be updated in render
+          scene: sceneRef.current,
+          container: cameraElement as HTMLElement,
+          selectableObjects,
+          onHover: (object, point) => {
+            if (object?.userData?.choice) {
+              setHoveredChoice(object.userData.choice)
+              // Add stronger glow on hover
+              RPSModels.addGlowEffect(object as THREE.Group, '#66FF66', 0.5)
+            } else {
+              // Reset glow for all objects
+              selectableObjects.forEach(obj => {
+                if (obj.userData.choice !== hoveredChoice) {
+                  RPSModels.addGlowEffect(obj as THREE.Group, '#4A90E2', 0.2)
+                }
+              })
+              setHoveredChoice(null)
+            }
+          },
+          onClick: (object, point) => {
+            if (object?.userData?.choice && object.userData.type === 'player-choice') {
+              handleChoiceSelect(object.userData.choice)
+            }
+          }
+        })
+      }
+    }
+  }, [hoveredChoice])
 
   // Setup AI choice models (all 3 visible with cycling lighting)
   const setupAIChoiceModels = useCallback(() => {
@@ -191,45 +233,34 @@ export function RPS3DGame({
       labelMesh.lookAt(0, labelMesh.position.y, -5) // Face the camera
       aiChoicesRef.current!.add(labelMesh)
     })
-  }, [createTextTexture])
+  }, [])
 
-  // Setup mouse interaction for player choices
-  const setupMouseInteraction = useCallback((selectableObjects: THREE.Object3D[], container: HTMLElement, camera: THREE.Camera, scene: THREE.Scene) => {
-    // Dispose existing mouse interaction
-    if (mouseInteractionRef.current) {
-      mouseInteractionRef.current.dispose()
-    }
+  // Create text texture for labels
+  const createTextTexture = (text: string, size: number, color: string): HTMLCanvasElement => {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')!
+    canvas.width = 256
+    canvas.height = 64
+    
+    context.fillStyle = color
+    context.font = `${size}px Arial`
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillText(text, canvas.width / 2, canvas.height / 2)
+    
+    return canvas
+  }
 
-    // Create new mouse interaction
-    mouseInteractionRef.current = createMouseInteraction({
-      camera,
-      scene,
-      container,
-      selectableObjects,
-      onHover: (object, point) => {
-        if (object?.userData?.choice) {
-          setHoveredChoice(object.userData.choice)
-          // Add stronger glow on hover
-          RPSModels.addGlowEffect(object as THREE.Group, '#66FF66', 0.5)
-        } else {
-          // Reset glow for all objects
-          selectableObjects.forEach(obj => {
-            if (obj.userData.choice !== hoveredChoice) {
-              RPSModels.addGlowEffect(obj as THREE.Group, '#4A90E2', 0.2)
-            }
-          })
-          setHoveredChoice(null)
-        }
-      },
-      onClick: (object, point) => {
-        if (object?.userData?.choice && object.userData.type === 'player-choice') {
-          handleChoiceSelect(object.userData.choice)
-        }
-      }
-    })
-  }, [hoveredChoice, handleChoiceSelect])
-
-  // Initialize 3D game scene
+  // Create hand geometry for different poses using enhanced models
+  const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
+    switch (pose) {
+      case 'rock':
+        return RPSModels.createRock()
+      case 'paper':
+        return RPSModels.createPaper()
+      case 'scissors':
+        return RPSModels.createScissors()
+    }  // Initialize 3D game scene
   const initializeGame = useCallback((scene: THREE.Scene) => {
     // Clear existing game
     if (gameGroupRef.current) {
@@ -247,27 +278,27 @@ export function RPS3DGame({
     platformMesh.receiveShadow = true
     gameGroup.add(platformMesh)
 
-    // Create player hand area (closer to camera, facing AI)
+    // Create player hand area (center-left)
     const playerHand = new THREE.Group()
-    playerHand.position.set(0, 0.5, 1.5)  // Closer to camera
+    playerHand.position.set(-2, 0.5, 0)
     playerHandRef.current = playerHand
     gameGroup.add(playerHand)
 
-    // Create AI hand area (farther from camera, facing player)
+    // Create AI hand area (center-right)
     const aiHand = new THREE.Group()
-    aiHand.position.set(0, 0.5, -1.5)  // Farther from camera
+    aiHand.position.set(2, 0.5, 0)
     aiHandRef.current = aiHand
     gameGroup.add(aiHand)
 
-    // Create player choice models area (front, closer to camera)
+    // Create player choice models area (front-left, closer to camera)
     const playerChoices = new THREE.Group()
-    playerChoices.position.set(0, 0.8, 2.5)  // Very close to camera for easy interaction
+    playerChoices.position.set(-2, 0.8, -2)
     playerChoicesRef.current = playerChoices
     gameGroup.add(playerChoices)
 
-    // Create AI choice models area (back, farther from camera)
+    // Create AI choice models area (front-right)
     const aiChoices = new THREE.Group()
-    aiChoices.position.set(0, 0.8, -2.5)  // Far from camera
+    aiChoices.position.set(2, 0.8, -2)
     aiChoicesRef.current = aiChoices
     gameGroup.add(aiChoices)
 
@@ -278,62 +309,72 @@ export function RPS3DGame({
     textMesh.position.y = 1
     gameGroup.add(textMesh)
 
-    // Setup choice models if game is active
+    // Setup player choice models if game is active
     if (gameState?.status === 'playing') {
       const currentRound = gameState.rounds[gameState.rounds.length - 1]
       if (!currentRound?.player1Choice) {
-        const selectableObjects = setupPlayerChoiceModels()
-        // Note: Mouse interaction will be set up in the render function when we have access to the actual camera
+        setupPlayerChoiceModels()
       }
       setupAIChoiceModels()
     }
 
     scene.add(gameGroup)
     sceneRef.current = scene
-  }, [gameState, setupPlayerChoiceModels, setupAIChoiceModels, setupMouseInteraction])
+  }, [gameState])
 
   // Animate AI cycling through choices using enhanced models
   const animateAICycling = useCallback(() => {
-    if (!aiChoicesRef.current || !gameState?.status || gameState.status !== 'playing') return
+    if (!aiHandRef.current) return
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
+    let currentIndex = 0
+
+    const cycleInterval = setInterval(() => {
+      if (!aiHandRef.current || isCountingDown) {
+        clearInterval(cycleInterval)
+        return
+      }
+
+      // Clear previous hand
+      aiHandRef.current.clear()
+      
+      // Add new cycling hand using enhanced models
+      const aiHand = createHandGeometry(choices[currentIndex])
+      aiHand.rotation.y = -Math.PI / 4
+      
+      // Add cycling glow effect to show it's cycling
+      RPSModels.addGlowEffect(aiHand, '#87CEEB', 0.6)
+      
+      aiHandRef.current.add(aiHand)
+      currentIndex = (currentIndex + 1) % choices.length
+    }, 800) // Slightly slower cycling for better visibility
+
+    return () => clearInterval(cycleInterval)
+  }, [isCountingDown, createHandGeometry])
+
+  // Create interactive 3D choice objects
+  const createChoice3D = useCallback((choice: 'rock' | 'paper' | 'scissors', position: THREE.Vector3, onClick: () => void) => {
+    const choiceGroup = new THREE.Group()
+    const baseGeometry = createHandGeometry(choice)
     
-    // Reset all models to default state
-    aiChoicesRef.current.children.forEach(child => {
-      if (child.userData?.choice) {
-        RPSModels.removeGlowEffect(child as THREE.Group)
+    // Scale up the choice for better visibility
+    baseGeometry.scale.setScalar(1.5)
+    
+    // Add glow effect for interactivity
+    baseGeometry.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        child.material = Materials.glowing('#4A90E2', 0.3)
       }
     })
-
-    // Highlight current choice
-    const currentChoice = choices[aiCycleIndex]
-    const currentModel = aiChoicesRef.current.children.find(child => 
-      child.userData?.choice === currentChoice
-    )
     
-    if (currentModel) {
-      RPSModels.addGlowEffect(currentModel as THREE.Group, '#87CEEB', 0.6)
-    }
-
-    // Update cycle index
-    setAICycleIndex((prev) => (prev + 1) % choices.length)
-  }, [aiCycleIndex, gameState])
-
-  // Start AI cycling animation
-  useEffect(() => {
-    if (!gameState?.status || gameState.status !== 'playing') return
-
-    const currentRound = gameState.rounds[gameState.rounds.length - 1]
-    if (!currentRound?.player1Choice && !isCountingDown) {
-      const interval = setInterval(animateAICycling, 800)
-      return () => clearInterval(interval)
-    }
-  }, [animateAICycling, gameState, isCountingDown])
-
-  // Reset mouse interaction setup when game state changes
-  useEffect(() => {
-    setMouseInteractionSetup(false)
-  }, [gameState?.status])
+    choiceGroup.add(baseGeometry)
+    choiceGroup.position.copy(position)
+    
+    // Add click detection (we'll handle this through raycasting in the UI)
+    choiceGroup.userData = { choice, onClick }
+    
+    return choiceGroup
+  }, [createHandGeometry])
 
   // Update hands based on game state
   const updateHands = useCallback(() => {
@@ -388,34 +429,41 @@ export function RPS3DGame({
           }
         }, 500)
       }
+    } else {
+      // No current round - show default neutral poses or cycling animation for AI
+      if (gameState.status === 'playing') {
+        // Start AI cycling animation
+        if (!aiHandRef.current.children.length) {
+          animateAICycling()
+        }
+      }
     }
-  }, [gameState, aiChoice, playerChoice, createHandGeometry])
+  }, [gameState, aiChoice, playerChoice, createHandGeometry, animateAICycling])
+
+  // Handle choice selection
+  const handleChoiceSelect = useCallback((choice: 'rock' | 'paper' | 'scissors') => {
+    if (!onMove || gameState?.status !== 'playing') return
+
+    setPlayerChoice(choice)
+    setIsCountingDown(true)
+
+    // Start countdown animation
+    setTimeout(() => {
+      onMove({ choice })
+      setIsCountingDown(false)
+    }, 2000) // 2 second countdown
+  }, [onMove, gameState])
 
   // Render function for the 3D scene
-  const handleRender = useCallback((scene: THREE.Scene, camera: THREE.Camera, renderer?: THREE.WebGLRenderer) => {
+  const handleRender = useCallback((scene: THREE.Scene, _camera: THREE.Camera) => {
     // Initialize game if not done
     if (!gameGroupRef.current) {
       initializeGame(scene)
     }
 
-    // Set up mouse interaction if we have renderer and it's not set up yet
-    if (renderer && !mouseInteractionSetup && playerChoicesRef.current) {
-      const selectableObjects: THREE.Object3D[] = []
-      playerChoicesRef.current.children.forEach(child => {
-        if (child.userData?.type === 'player-choice') {
-          selectableObjects.push(child)
-        }
-      })
-      
-      if (selectableObjects.length > 0) {
-        setupMouseInteraction(selectableObjects, renderer.domElement, camera, scene)
-        setMouseInteractionSetup(true)
-      }
-    }
-
     // Update hands when game state changes
     updateHands()
-  }, [initializeGame, updateHands, setupMouseInteraction, mouseInteractionSetup])
+  }, [initializeGame, updateHands])
 
   // Get game info for HUD
   const currentRound = gameState?.rounds[gameState.rounds.length - 1]
@@ -435,15 +483,6 @@ export function RPS3DGame({
     difficulty: 'Medium' // Could get from game session
   } : undefined
 
-  // Cleanup mouse interaction on unmount
-  useEffect(() => {
-    return () => {
-      if (mouseInteractionRef.current) {
-        mouseInteractionRef.current.dispose()
-      }
-    }
-  }, [])
-
   return (
     <div className={className}>
       <Game3DContainer
@@ -453,160 +492,123 @@ export function RPS3DGame({
         aiInfo={aiInfo}
         isLoading={isLoading}
         error={error}
+        onRender={handleRender}
         onReset={onReset}
         onNewGame={onNewGame}
-        onRender={handleRender}
-        showHUD={false}  // Disable built-in HUD to avoid overlay conflicts
         sceneConfig={{
-          background: '#1a1a2e',
-          fog: { color: '#1a1a2e', near: 5, far: 15 }
+          enableShadows: true,
+          background: '#2a1810'
         }}
         cameraConfig={{
+          enableZoom: true,
+          enablePan: true,
+          enableRotate: true,
           autoRotate: false,
           minDistance: 4,
           maxDistance: 12
         }}
       >
-        {/* Custom UI overlays positioned to not interfere with 3D interaction */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Instructions overlay when waiting for player choice */}
-          {gameState?.status === 'playing' && !currentRound?.player1Choice && !isCountingDown && (
-            <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
-              <h3 className="text-lg font-bold text-center mb-4">Choose Your Move</h3>
-              <p className="text-center text-sm text-slate-300 mb-4">
-                Click on one of the 3D models on your side (left) to make your choice
-              </p>
-              <p className="text-center text-xs text-slate-400">
-                The AI models on the right are cycling to show it's thinking...
-              </p>
-            </div>
-          )}
-
-          {/* Countdown overlay */}
-          {isCountingDown && (
-            <div className="absolute top-20 right-4 bg-black/80 backdrop-blur-sm rounded-xl p-4 text-white text-center max-w-xs">
-              <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              <span className="text-sm text-blue-400">Revealing choices...</span>
-            </div>
-          )}
-
-          {/* Round result display */}
-          {currentRound?.winner && (
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center max-w-md">
-              <h3 className="text-lg font-bold mb-2">Round Result</h3>
-              <div className="flex justify-center space-x-8 mb-4">
-                <div className="text-center">
-                  <div className="mb-1 flex justify-center">
-                    <Mini3DModel 
-                      choice={currentRound.player1Choice!} 
-                      size={48} 
-                      glowColor={currentRound.winner === 'player1' ? '#00FF00' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
-                    />
-                  </div>
-                  <div className="text-sm">You</div>
-                </div>
-                <div className="text-2xl flex items-center">vs</div>
-                <div className="text-center">
-                  <div className="mb-1 flex justify-center">
-                    <Mini3DModel 
-                      choice={currentRound.player2Choice!} 
-                      size={48} 
-                      glowColor={currentRound.winner === 'ai' ? '#FF0000' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
-                    />
-                  </div>
-                  <div className="text-sm">AI</div>
-                </div>
+        {/* Choice selector overlay - now with 3D interaction */}
+        {gameState?.status === 'playing' && !currentRound?.player1Choice && (
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white">
+            <h3 className="text-lg font-bold text-center mb-4">Choose Your Move</h3>
+            <p className="text-center text-sm text-slate-300 mb-6">
+              Click on one of the 3D hand models in the scene to make your choice
+            </p>
+            <div className="flex justify-center space-x-8">
+              <div className="text-center">
+                <button
+                  onClick={() => handleChoiceSelect('rock')}
+                  disabled={isCountingDown}
+                  className="flex flex-col items-center p-4 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors duration-200"
+                >
+                  <Mini3DModel 
+                    choice="rock" 
+                    size={60} 
+                    animate={true}
+                    className="mb-2 rounded-lg"
+                  />
+                  <span className="text-sm font-medium">Rock</span>
+                </button>
               </div>
-              <div className={`text-lg font-bold ${
-                currentRound.winner === 'player1' ? 'text-green-400' :
-                currentRound.winner === 'ai' ? 'text-red-400' :
-                'text-yellow-400'
-              }`}>
-                {currentRound.winner === 'player1' ? 'You Win!' :
-                 currentRound.winner === 'ai' ? 'AI Wins!' :
-                 'Draw!'}
+              <div className="text-center">
+                <button
+                  onClick={() => handleChoiceSelect('paper')}
+                  disabled={isCountingDown}
+                  className="flex flex-col items-center p-4 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors duration-200"
+                >
+                  <Mini3DModel 
+                    choice="paper" 
+                    size={60} 
+                    animate={true}
+                    className="mb-2 rounded-lg"
+                  />
+                  <span className="text-sm font-medium">Paper</span>
+                </button>
+              </div>
+              <div className="text-center">
+                <button
+                  onClick={() => handleChoiceSelect('scissors')}
+                  disabled={isCountingDown}
+                  className="flex flex-col items-center p-4 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors duration-200"
+                >
+                  <Mini3DModel 
+                    choice="scissors" 
+                    size={60} 
+                    animate={true}
+                    className="mb-2 rounded-lg"
+                  />
+                  <span className="text-sm font-medium">Scissors</span>
+                </button>
               </div>
             </div>
-          )}
-
-          {/* Game info HUD - only show when not counting down */}
-          {!isCountingDown && (
-            <div className="absolute top-4 right-4">
-            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 text-white min-w-48">
-              {/* Game Status */}
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Status:</span>
-                  <span className={`font-medium ${
-                    gameState?.status === 'playing' ? 'text-green-400' :
-                    gameState?.status === 'finished' ? 'text-blue-400' :
-                    'text-yellow-400'
-                  }`}>
-                    {gameState?.status === 'playing' ? 'In Progress' :
-                     gameState?.status === 'finished' ? 'Game Complete' :
-                     'Waiting'}
-                  </span>
-                </div>
-                
-                {/* Scores */}
-                {playerInfo && aiInfo && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">{playerInfo.name}:</span>
-                      <span className="text-blue-400 font-bold">{playerInfo.score}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">{aiInfo.name}:</span>
-                      <span className="text-red-400 font-bold">{aiInfo.score}</span>
-                    </div>
-                  </>
-                )}
-
-                {/* Current Round */}
-                {gameState && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Round:</span>
-                    <span className="text-cyan-400">
-                      {gameState.rounds.length} / {gameState.maxRounds}
-                    </span>
-                  </div>
-                )}
+            {isCountingDown && (
+              <div className="text-center mt-4">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <span className="text-sm text-blue-400">Revealing choices...</span>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Camera Controls Help */}
-              <div className="mt-4 pt-4 border-t border-slate-600">
-                <div className="text-xs text-slate-400 space-y-1">
-                  <div>🖱️ Drag: Rotate view</div>
-                  <div>🎯 Right-click: Pan</div>
-                  <div>🔍 Scroll: Zoom</div>
+        {/* Round result display */}
+        {currentRound?.winner && (
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center">
+            <h3 className="text-lg font-bold mb-2">Round Result</h3>
+            <div className="flex justify-center space-x-8 mb-4">
+              <div className="text-center">
+                <div className="mb-1 flex justify-center">
+                  <Mini3DModel 
+                    choice={currentRound.player1Choice!} 
+                    size={48} 
+                    glowColor={currentRound.winner === 'player1' ? '#00FF00' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
+                  />
                 </div>
+                <div className="text-sm">You</div>
               </div>
-
-              {/* Action Buttons */}
-              {(onReset || onNewGame) && (
-                <div className="mt-4 flex space-x-2">
-                  {onReset && (
-                    <button
-                      onClick={onReset}
-                      className="flex-1 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors duration-200"
-                    >
-                      Reset
-                    </button>
-                  )}
-                  {onNewGame && (
-                    <button
-                      onClick={onNewGame}
-                      className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors duration-200"
-                    >
-                      New Game
-                    </button>
-                  )}
+              <div className="text-2xl flex items-center">vs</div>
+              <div className="text-center">
+                <div className="mb-1 flex justify-center">
+                  <Mini3DModel 
+                    choice={currentRound.player2Choice!} 
+                    size={48} 
+                    glowColor={currentRound.winner === 'ai' ? '#FF0000' : currentRound.winner === 'draw' ? '#FFD700' : undefined}
+                  />
                 </div>
-              )}
+                <div className="text-sm">AI</div>
+              </div>
+            </div>
+            <div className={`text-lg font-bold ${
+              currentRound.winner === 'player1' ? 'text-green-400' :
+              currentRound.winner === 'ai' ? 'text-red-400' :
+              'text-yellow-400'
+            }`}>
+              {currentRound.winner === 'player1' ? 'You Win!' :
+               currentRound.winner === 'ai' ? 'AI Wins!' :
+               'Draw!'}
             </div>
           </div>
-          )}
-        </div>
+        )}
       </Game3DContainer>
     </div>
   )

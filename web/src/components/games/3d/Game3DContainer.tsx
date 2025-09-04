@@ -44,7 +44,7 @@ interface Game3DContainerProps {
   /** Show built-in HUD */
   showHUD?: boolean
   /** Render function for 3D content */
-  onRender?: (scene: THREE.Scene, camera: THREE.Camera) => void
+  onRender?: (scene: THREE.Scene, camera: THREE.Camera, renderer?: THREE.WebGLRenderer) => void
   /** Game control handlers */
   onReset?: () => void
   onNewGame?: () => void
@@ -119,7 +119,7 @@ export function Game3DContainer({
         
         // Call custom render function
         if (onRender) {
-          onRender(scene, camera)
+          onRender(scene, camera, renderer || undefined)
         }
       })
 
