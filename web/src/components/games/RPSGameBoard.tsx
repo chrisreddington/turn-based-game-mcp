@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import type { RPSGameState, RPSMove, RPSChoice } from '@turn-based-mcp/shared'
 
 interface RPSGameBoardProps {
@@ -21,12 +22,50 @@ const choiceNames: Record<RPSChoice, string> = {
 }
 
 export function RPSGameBoard({ gameState, onMove, disabled }: RPSGameBoardProps) {
+  const [showAIChoice, setShowAIChoice] = useState(false)
+  const [showRoundResult, setShowRoundResult] = useState(false)
+  const [aiJustSelected, setAIJustSelected] = useState<RPSChoice | null>(null)
+  
   const currentRound = gameState.rounds[gameState.currentRound] || {}
   const canMakeMove = !disabled && 
                      gameState.status === 'playing' && 
                      gameState.currentRound < gameState.maxRounds &&
                      gameState.currentPlayerId === 'player1' &&
                      !currentRound.player1Choice
+
+  // Effect to handle AI choice reveal sequence
+  useEffect(() => {
+    if (!gameState) return
+    
+    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+    
+    // Check if AI just made a move (round is complete)
+    if (currentRoundData.player1Choice && currentRoundData.player2Choice && currentRoundData.winner) {
+      // If we haven't shown the AI choice yet, start the sequence
+      if (!showAIChoice && currentRoundData.player2Choice !== aiJustSelected) {
+        setAIJustSelected(currentRoundData.player2Choice)
+        setShowAIChoice(true)
+        setShowRoundResult(false)
+        
+        // Show AI choice for 2 seconds, then show round result
+        setTimeout(() => {
+          setShowRoundResult(true)
+        }, 2000)
+        
+        // Hide AI choice highlight after 3 seconds total
+        setTimeout(() => {
+          setShowAIChoice(false)
+        }, 3000)
+      }
+    } else {
+      // Reset states when starting a new round or if round isn't complete
+      if (!currentRoundData.player1Choice || !currentRoundData.player2Choice) {
+        setShowAIChoice(false)
+        setShowRoundResult(false)
+        setAIJustSelected(null)
+      }
+    }
+  }, [gameState, gameState?.currentRound, aiJustSelected, showAIChoice])
 
   const handleChoiceClick = (choice: RPSChoice) => {
     if (!canMakeMove) return
@@ -116,7 +155,8 @@ export function RPSGameBoard({ gameState, onMove, disabled }: RPSGameBoardProps)
         
         {gameState.status === 'playing' && (
           <p className="text-gray-600 dark:text-gray-300">
-            {canMakeMove ? 'Choose your move!' : 
+            {showAIChoice ? 'AI is revealing its choice...' :
+             canMakeMove ? 'Choose your move!' : 
              currentRound.player1Choice ? 'Waiting for AI...' : 'Waiting...'}
           </p>
         )}
@@ -130,8 +170,56 @@ export function RPSGameBoard({ gameState, onMove, disabled }: RPSGameBoardProps)
         )}
       </div>
 
-      {/* Current round display */}
-      {currentRound.player1Choice && currentRound.player2Choice && (
+      {/* AI Choice Reveal Display */}
+      {showAIChoice && aiJustSelected && currentRound.player1Choice && (
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-3">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+              <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-300">AI Selected!</h3>
+            </div>
+            <div className="flex items-center justify-center space-x-8">
+              <div className="text-center opacity-60">
+                <div className="text-3xl mb-2">{choiceEmojis[currentRound.player1Choice]}</div>
+                <div className="font-medium text-gray-600 dark:text-gray-400">You</div>
+              </div>
+              <div className="text-2xl text-gray-400">vs</div>
+              <div className="text-center">
+                <div className="text-3xl mb-2 animate-bounce">{choiceEmojis[aiJustSelected]}</div>
+                <div className="font-medium text-yellow-700 dark:text-yellow-300">AI chose {choiceNames[aiJustSelected]}!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Round Result Display */}
+      {showRoundResult && currentRound.player1Choice && currentRound.player2Choice && currentRound.winner && (
+        <div className="mb-6 p-4 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600">
+          <div className="flex items-center justify-center space-x-8">
+            <div className="text-center">
+              <div className="text-3xl mb-2">{choiceEmojis[currentRound.player1Choice]}</div>
+              <div className="font-medium">You</div>
+            </div>
+            <div className="text-2xl">vs</div>
+            <div className="text-center">
+              <div className="text-3xl mb-2">{choiceEmojis[currentRound.player2Choice]}</div>
+              <div className="font-medium">AI</div>
+            </div>
+          </div>
+          <div className={`text-center mt-3 font-semibold text-lg ${
+            currentRound.winner === 'player1' ? 'text-green-600 dark:text-green-400' :
+            currentRound.winner === 'ai' ? 'text-red-600 dark:text-red-400' :
+            'text-yellow-600 dark:text-yellow-400'
+          }`}>
+            {currentRound.winner === 'draw' ? '🤝 Draw!' :
+             currentRound.winner === 'player1' ? '🎉 You win this round!' : '🤖 AI wins this round!'}
+          </div>
+        </div>
+      )}
+
+      {/* Classic Round Display (fallback for completed rounds in history) */}
+      {!showAIChoice && !showRoundResult && currentRound.player1Choice && currentRound.player2Choice && (
         <div className="mb-6 p-4 bg-white dark:bg-gray-700 rounded-lg">
           <div className="flex items-center justify-center space-x-8">
             <div className="text-center">

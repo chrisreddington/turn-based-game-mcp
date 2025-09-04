@@ -85,10 +85,22 @@ export function useRockPaperScissorsGame(options: UseRockPaperScissorsGameOption
   // Update player turn status when game state changes
   useEffect(() => {
     if (state.gameSession?.gameState) {
-      const currentRound = state.gameSession.gameState.rounds[state.gameSession.gameState.rounds.length - 1]
-      const isPlayerTurn = state.gameSession.gameState.status === 'playing' &&
-                          (!currentRound || !currentRound.player1Choice)
+      const gameState = state.gameSession.gameState
+      const currentRoundIndex = gameState.currentRound
+      const currentRound = gameState.rounds[currentRoundIndex]
+      
+      // Player's turn if:
+      // 1. Game is playing
+      // 2. Current round exists and player hasn't made a choice yet
+      // 3. OR if we're waiting for a new round to start and it's player's turn
+      const isPlayerTurn = gameState.status === 'playing' && (
+        (currentRound && !currentRound.player1Choice) || // Player needs to make choice in current round
+        (!currentRound && currentRoundIndex < gameState.maxRounds) // New round starting
+      )
+      
       setState(prev => ({ ...prev, isPlayerTurn }))
+    } else {
+      setState(prev => ({ ...prev, isPlayerTurn: false }))
     }
   }, [state.gameSession])
 
@@ -110,14 +122,35 @@ export function useRockPaperScissorsGame(options: UseRockPaperScissorsGameOption
     }
   }, [])
 
-  // Poll for game updates when it's AI's turn
+  // Poll for game updates when game is active
   useEffect(() => {
     if (!state.gameSession || state.gameSession.gameState.status !== 'playing') {
       return
     }
 
-    const currentRound = state.gameSession.gameState.rounds[state.gameSession.gameState.rounds.length - 1]
-    if (currentRound?.player1Choice && !currentRound.player2Choice) {
+    // Determine if we need to poll based on game state
+    const gameState = state.gameSession.gameState
+    const currentRoundIndex = gameState.currentRound
+    const currentRound = gameState.rounds[currentRoundIndex]
+    
+    // Poll in these scenarios:
+    // 1. AI's turn to make initial choice (no player1Choice yet)
+    // 2. Player made a choice, waiting for AI response (player1Choice but no player2Choice)
+    // 3. Both choices made but round not resolved yet
+    const shouldPoll = (
+      !currentRound?.player1Choice || // AI's turn first
+      (currentRound?.player1Choice && !currentRound?.player2Choice) || // Waiting for AI response
+      (currentRound?.player1Choice && currentRound?.player2Choice && !currentRound?.winner) // Round needs resolution
+    )
+
+    if (shouldPoll) {
+      console.log('Starting game state polling...', {
+        currentRound: currentRoundIndex,
+        player1Choice: currentRound?.player1Choice,
+        player2Choice: currentRound?.player2Choice,
+        winner: currentRound?.winner
+      })
+
       const pollInterval = setInterval(async () => {
         try {
           const response = await fetch('/api/games/rock-paper-scissors')
@@ -127,19 +160,34 @@ export function useRockPaperScissorsGame(options: UseRockPaperScissorsGameOption
               g.gameState.id === state.gameSession!.gameState.id
             )
             
-            if (updatedGame && state.gameSession &&
-                (updatedGame.gameState.updatedAt !== state.gameSession.gameState.updatedAt ||
-                 updatedGame.gameState.rounds.length !== state.gameSession.gameState.rounds.length)) {
-              console.log('Game state updated, refreshing...')
-              setState(prev => ({ ...prev, gameSession: updatedGame }))
+            if (updatedGame && state.gameSession) {
+              const hasUpdates = (
+                updatedGame.gameState.updatedAt !== state.gameSession.gameState.updatedAt ||
+                updatedGame.gameState.currentRound !== state.gameSession.gameState.currentRound ||
+                JSON.stringify(updatedGame.gameState.rounds) !== JSON.stringify(state.gameSession.gameState.rounds) ||
+                JSON.stringify(updatedGame.gameState.scores) !== JSON.stringify(state.gameSession.gameState.scores)
+              )
+
+              if (hasUpdates) {
+                console.log('Game state updated, refreshing...', {
+                  oldRound: state.gameSession.gameState.currentRound,
+                  newRound: updatedGame.gameState.currentRound,
+                  oldUpdatedAt: state.gameSession.gameState.updatedAt,
+                  newUpdatedAt: updatedGame.gameState.updatedAt
+                })
+                setState(prev => ({ ...prev, gameSession: updatedGame }))
+              }
             }
           }
         } catch (error) {
           console.error('Error polling for game updates:', error)
         }
-      }, 3000)
+      }, 2000) // Poll every 2 seconds for more responsive updates
 
-      return () => clearInterval(pollInterval)
+      return () => {
+        console.log('Stopping game state polling...')
+        clearInterval(pollInterval)
+      }
     }
   }, [state.gameSession])
 

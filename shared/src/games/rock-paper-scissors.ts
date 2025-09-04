@@ -55,7 +55,7 @@ export class RockPaperScissorsGame implements Game<RPSGameState, RPSMove> {
     const currentRound = gameState.rounds[gameState.currentRound];
     
     // Check if player hasn't made a choice yet in this round
-    if (playerId === 'player1' || playerId === gameState.players[0].id) {
+    if (playerId === gameState.players[0].id) {
       return !currentRound.player1Choice;
     } else {
       return !currentRound.player2Choice;

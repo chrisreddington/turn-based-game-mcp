@@ -54,6 +54,9 @@ export function RPS3DGame({
   const [hoveredChoice, setHoveredChoice] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [aiCycleIndex, setAICycleIndex] = useState(0)
   const [mouseInteractionSetup, setMouseInteractionSetup] = useState(false)
+  const [aiJustSelected, setAIJustSelected] = useState<'rock' | 'paper' | 'scissors' | null>(null)
+  const [showAISelection, setShowAISelection] = useState(false)
+  const [showRoundResult, setShowRoundResult] = useState(false)
 
   // Create hand geometry for different poses using enhanced models
   const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
@@ -274,7 +277,7 @@ export function RPS3DGame({
     })
   }, [gameState, createPlayerLabel, create3DText])
 
-  // Setup AI choice models (all 3 visible with cycling lighting)
+  // Setup AI choice models (all 3 visible with cycling lighting or highlighting selected choice)
   const setupAIChoiceModels = useCallback(() => {
     if (!aiChoicesRef.current) return
 
@@ -308,13 +311,51 @@ export function RPS3DGame({
       model.userData = { choice, type: 'ai-choice' }
       model.name = `ai-choice-${choice}`
       
+      // If we're showing AI selection and this is the selected choice, highlight it
+      if (showAISelection && aiJustSelected === choice) {
+        model.scale.setScalar(1.3)
+        RPSModels.addGlowEffect(model, '#FF6B6B', 1.0)
+        
+        // Add "AI SELECTED" label above the chosen model
+        const selectedLabel = create3DText('AI SELECTED', new THREE.Vector3(model.position.x, 1.2, 0), '#FF6B6B')
+        aiChoicesRef.current!.add(selectedLabel)
+        
+        // Add a pulsing animation to the selected choice
+        model.userData.animateSelection = true
+      } else if (!showAISelection) {
+        // Normal state - just add the model without highlighting
+        RPSModels.addGlowEffect(model, '#FF6B6B', 0.1)
+      } else {
+        // Non-selected choices during AI selection display are dimmed
+        model.scale.setScalar(0.5)
+        RPSModels.addGlowEffect(model, '#333333', 0.05)
+        
+        // Make the material more transparent for non-selected choices
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => {
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.opacity = 0.3
+                  mat.transparent = true
+                }
+              })
+            } else if (child.material instanceof THREE.MeshStandardMaterial) {
+              child.material.opacity = 0.3
+              child.material.transparent = true
+            }
+          }
+        })
+      }
+      
       aiChoicesRef.current!.add(model)
 
       // Add 3D floating label that's visible from all directions
-      const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), '#FFFFFF')
+      const labelColor = showAISelection && aiJustSelected === choice ? '#FF6B6B' : '#FFFFFF'
+      const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), labelColor)
       aiChoicesRef.current!.add(label3D)
     })
-  }, [gameState, createPlayerLabel, create3DText])
+  }, [gameState, createPlayerLabel, create3DText, showAISelection, aiJustSelected])
 
   // Setup mouse interaction for player choices
   const setupMouseInteraction = useCallback((selectableObjects: THREE.Object3D[], container: HTMLElement, camera: THREE.Camera, scene: THREE.Scene) => {
@@ -404,10 +445,11 @@ export function RPS3DGame({
     // Setup choice models if game is active
     if (gameState?.status === 'playing') {
       const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+      
+      // Player choice setup logic
       if (!currentRoundData.player1Choice && !playerChoice) {
         // Player hasn't made their choice yet - show interactive models
         setupPlayerChoiceModels()
-        // Note: Mouse interaction will be set up in the render function when we have access to the actual camera
       } else {
         // Player has made their choice or is in the process of making it - show locked/selected state
         const choiceToHighlight = currentRoundData.player1Choice || playerChoice
@@ -415,6 +457,8 @@ export function RPS3DGame({
           setupPlayerChoiceModelsLocked(choiceToHighlight)
         }
       }
+      
+      // AI choice setup - will handle highlighting internally based on showAISelection state
       setupAIChoiceModels()
     }
 
@@ -424,7 +468,7 @@ export function RPS3DGame({
 
   // Animate AI cycling through choices using enhanced models
   const animateAICycling = useCallback(() => {
-    if (!aiChoicesRef.current || !gameState?.status || gameState.status !== 'playing') return
+    if (!aiChoicesRef.current || !gameState?.status || gameState.status !== 'playing' || showAISelection) return
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
     
@@ -432,6 +476,23 @@ export function RPS3DGame({
     aiChoicesRef.current.children.forEach(child => {
       if (child.userData?.choice) {
         RPSModels.removeGlowEffect(child as THREE.Group)
+        // Reset scale and opacity
+        child.scale.setScalar(1.0)
+        child.traverse((subChild) => {
+          if (subChild instanceof THREE.Mesh && subChild.material) {
+            if (Array.isArray(subChild.material)) {
+              subChild.material.forEach(mat => {
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.opacity = 1.0
+                  mat.transparent = false
+                }
+              })
+            } else if (subChild.material instanceof THREE.MeshStandardMaterial) {
+              subChild.material.opacity = 1.0
+              subChild.material.transparent = false
+            }
+          }
+        })
       }
     })
 
@@ -447,11 +508,11 @@ export function RPS3DGame({
 
     // Update cycle index
     setAICycleIndex((prev) => (prev + 1) % choices.length)
-  }, [aiCycleIndex, gameState])
+  }, [aiCycleIndex, gameState, showAISelection])
 
   // Start AI cycling animation
   useEffect(() => {
-    if (!gameState?.status || gameState.status !== 'playing') return
+    if (!gameState?.status || gameState.status !== 'playing' || showAISelection) return
 
     const currentRoundData = gameState.rounds[gameState.currentRound] || {}
     // Continue AI cycling until the AI has made their choice (player2Choice exists)
@@ -459,7 +520,7 @@ export function RPS3DGame({
       const interval = setInterval(animateAICycling, 800)
       return () => clearInterval(interval)
     }
-  }, [animateAICycling, gameState, isCountingDown])
+  }, [animateAICycling, gameState, isCountingDown, showAISelection])
 
   // Reset mouse interaction setup when game state changes
   useEffect(() => {
@@ -482,11 +543,61 @@ export function RPS3DGame({
     if (gameState?.status === 'playing') {
       const currentRoundData = gameState.rounds[gameState.currentRound] || {}
       if (!currentRoundData.player1Choice && !currentRoundData.player2Choice) {
-        // New round started, reset player choice
+        // New round started, reset player choice and prepare for new selections
         setPlayerChoice(null)
+        setAIJustSelected(null)
+        setShowAISelection(false)
+        setShowRoundResult(false)
+        setAIChoice(null)
+        
+        // Reset to interactive player choice models
+        if (playerChoicesRef.current) {
+          setupPlayerChoiceModels()
+        }
       }
     }
-  }, [gameState?.currentRound, gameState?.status, gameState?.rounds])
+  }, [gameState?.currentRound, gameState?.status, gameState?.rounds, setupPlayerChoiceModels])
+
+  // Detect when AI makes a move and show selection highlight
+  useEffect(() => {
+    if (!gameState) return
+    
+    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+    
+    // Check if AI just made a move (player2Choice exists but we haven't processed it yet)
+    if (currentRoundData.player2Choice && currentRoundData.player2Choice !== aiChoice) {
+      // AI just made their selection
+      setAIJustSelected(currentRoundData.player2Choice)
+      setShowAISelection(true)
+      setShowRoundResult(false) // Hide round result initially
+      
+      // Rebuild AI choice models to show the selection
+      setupAIChoiceModels()
+      
+      // Show AI selection for 2.5 seconds, then show round result
+      setTimeout(() => {
+        setShowRoundResult(true)
+      }, 2500)
+      
+      // Hide the AI selection highlight after 3 seconds and prepare for next round
+      setTimeout(() => {
+        setShowAISelection(false)
+        setAIJustSelected(null)
+        
+        // If the round is complete and game is still playing, prepare for next round
+        if (gameState.status === 'playing' && gameState.currentRound < gameState.maxRounds - 1) {
+          // Check if this was the last move of the round
+          if (currentRoundData.player1Choice && currentRoundData.player2Choice) {
+            // Round complete, will transition to next round soon
+            // The round transition useEffect will handle resetting to selection mode
+          }
+        }
+        
+        // Rebuild AI models without selection highlight
+        setupAIChoiceModels()
+      }, 3000)
+    }
+  }, [gameState, aiChoice, setupAIChoiceModels])
 
   // Update hands based on game state
   const updateHands = useCallback(() => {
@@ -566,6 +677,17 @@ export function RPS3DGame({
     // Animate selected player choice with pulsing effect
     if (playerChoicesRef.current) {
       playerChoicesRef.current.children.forEach(child => {
+        if (child.userData?.animateSelection) {
+          const time = Date.now() * 0.003
+          const pulse = Math.sin(time) * 0.1 + 1.3
+          child.scale.setScalar(pulse)
+        }
+      })
+    }
+
+    // Animate selected AI choice with pulsing effect during AI selection display
+    if (aiChoicesRef.current && showAISelection) {
+      aiChoicesRef.current.children.forEach(child => {
         if (child.userData?.animateSelection) {
           const time = Date.now() * 0.003
           const pulse = Math.sin(time) * 0.1 + 1.3
@@ -669,6 +791,22 @@ export function RPS3DGame({
             </div>
           )}
 
+          {/* AI Selection Display Overlay */}
+          {showAISelection && aiJustSelected && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-6 h-6 bg-red-500 rounded-full animate-pulse"></div>
+                <h3 className="text-lg font-bold text-red-400">AI Selected!</h3>
+              </div>
+              <p className="text-center text-sm text-slate-300 mb-2">
+                AI chose: <span className="font-bold text-red-400">{aiJustSelected.toUpperCase()}</span>
+              </p>
+              <p className="text-center text-xs text-slate-400">
+                Watch the highlighted model on the right side!
+              </p>
+            </div>
+          )}
+
           {/* Waiting for AI move overlay - use same logic as 2D */}
           {gameState?.status === 'playing' && (playerChoice || currentRound.player1Choice) && !currentRound.player2Choice && (
             <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white max-w-sm">
@@ -694,7 +832,7 @@ export function RPS3DGame({
           )}
 
           {/* Round result display */}
-          {currentRound?.winner && (
+          {showRoundResult && currentRound?.winner && (
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-6 text-white text-center max-w-md">
               <h3 className="text-lg font-bold mb-2">Round Result</h3>
               <div className="flex justify-center space-x-8 mb-4">
@@ -790,6 +928,26 @@ export function RPS3DGame({
                       <span className="text-red-400 font-bold">{aiInfo.score}</span>
                     </div>
                   </>
+                )}
+
+                {/* Game Winner Display */}
+                {gameState?.status === 'finished' && gameState.winner && (
+                  <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-center">
+                    <div className="text-lg font-bold mb-1">
+                      {gameState.winner === 'player1' && (
+                        <span className="text-green-400">🎉 You Won!</span>
+                      )}
+                      {gameState.winner === 'ai' && (
+                        <span className="text-red-400">🤖 AI Won!</span>
+                      )}
+                      {gameState.winner === 'draw' && (
+                        <span className="text-yellow-400">🤝 Draw!</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-300">
+                      Final Score: {playerInfo?.score || 0} - {aiInfo?.score || 0}
+                    </div>
+                  </div>
                 )}
 
                 {/* Current Round */}

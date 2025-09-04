@@ -72,7 +72,7 @@ export function Mini3DModel({
     }
 
     // Animation loop
-    let startTime = Date.now()
+    const startTime = Date.now()
     const animateModel = () => {
       if (!modelRef.current) return
 
