@@ -149,6 +149,40 @@ export function RPS3DGame({
     sceneRef.current = scene
   }, [])
 
+  // Animate AI cycling through choices
+  const animateAICycling = useCallback(() => {
+    if (!aiHandRef.current) return
+
+    const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
+    let currentIndex = 0
+
+    const cycleInterval = setInterval(() => {
+      if (!aiHandRef.current || isCountingDown) {
+        clearInterval(cycleInterval)
+        return
+      }
+
+      // Clear previous hand
+      aiHandRef.current.clear()
+      
+      // Add new cycling hand
+      const aiHand = createHandGeometry(choices[currentIndex])
+      aiHand.rotation.y = -Math.PI / 4
+      
+      // Add slight glow to show it's cycling
+      aiHand.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          child.material = Materials.transparent('#87CEEB', 0.8)
+        }
+      })
+      
+      aiHandRef.current.add(aiHand)
+      currentIndex = (currentIndex + 1) % choices.length
+    }, 500)
+
+    return () => clearInterval(cycleInterval)
+  }, [isCountingDown, createHandGeometry])
+
   // Update hands based on game state
   const updateHands = useCallback(() => {
     if (!gameState || !playerHandRef.current || !aiHandRef.current) return
@@ -212,40 +246,6 @@ export function RPS3DGame({
       }
     }
   }, [gameState, aiChoice, playerChoice, createHandGeometry, animateAICycling])
-
-  // Animate AI cycling through choices
-  const animateAICycling = useCallback(() => {
-    if (!aiHandRef.current) return
-
-    const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
-    let currentIndex = 0
-
-    const cycleInterval = setInterval(() => {
-      if (!aiHandRef.current || isCountingDown) {
-        clearInterval(cycleInterval)
-        return
-      }
-
-      // Clear previous hand
-      aiHandRef.current.clear()
-      
-      // Add new cycling hand
-      const aiHand = createHandGeometry(choices[currentIndex])
-      aiHand.rotation.y = -Math.PI / 4
-      
-      // Add slight glow to show it's cycling
-      aiHand.children.forEach(child => {
-        if (child instanceof THREE.Mesh) {
-          child.material = Materials.transparent('#87CEEB', 0.8)
-        }
-      })
-      
-      aiHandRef.current.add(aiHand)
-      currentIndex = (currentIndex + 1) % choices.length
-    }, 500)
-
-    return () => clearInterval(cycleInterval)
-  }, [isCountingDown, createHandGeometry])
 
   // Handle choice selection
   const handleChoiceSelect = useCallback((choice: 'rock' | 'paper' | 'scissors') => {

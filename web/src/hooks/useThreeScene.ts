@@ -132,7 +132,7 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
     }
 
     return cleanup
-  }, []) // Only run once on mount
+  }, [initializeScene, cleanup]) // Added dependencies
 
   // Handle window resize
   useEffect(() => {
