@@ -395,7 +395,7 @@ export function TicTacToe3DBoard({
     <div className={className} data-3d-container>
             <Game3DContainer
         title="tic-tac-toe" // Use simple slug for navigation, not displayed
-        gameState={gameState}
+        gameState={gameState || undefined}
         playerInfo={playerInfo}
         aiInfo={aiInfo}
         isLoading={isLoading}

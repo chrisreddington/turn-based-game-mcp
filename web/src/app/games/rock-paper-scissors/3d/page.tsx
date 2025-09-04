@@ -8,7 +8,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { RPS3DGame } from '../../../../components/games/3d/RPS3DGame'
 import { use3DGame } from '../../../../hooks/use3DGame'
-import type { RPSMove, Difficulty } from '@turn-based-mcp/shared'
+import type { RPSMove, Difficulty, RPSGameState } from '@turn-based-mcp/shared'
 
 export default function RockPaperScissors3DPage() {
   const [playerName, setPlayerName] = useState('Player')
@@ -22,7 +22,7 @@ export default function RockPaperScissors3DPage() {
     createGame,
     makeMove,
     resetGame,
-    gameState,
+    gameState: baseGameState,
     isPlayerTurn
   } = use3DGame({
     gameType: 'rock-paper-scissors',
@@ -30,6 +30,9 @@ export default function RockPaperScissors3DPage() {
     defaultPlayerName: playerName,
     defaultDifficulty: difficulty
   })
+
+  // Cast to specific game state type
+  const gameState = baseGameState as RPSGameState | null
 
   const handleMove = async (move: RPSMove) => {
     if (!isPlayerTurn) return

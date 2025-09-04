@@ -294,7 +294,7 @@ export function RPS3DGame({
     <div className={className}>
       <Game3DContainer
         title="3D Rock Paper Scissors"
-        gameState={gameState}
+        gameState={gameState || undefined}
         playerInfo={playerInfo}
         aiInfo={aiInfo}
         isLoading={isLoading}

@@ -201,7 +201,7 @@ export function Game3DContainer({
       )}
 
       {/* Game HUD */}
-      {isInitialized && !errorCombined && showHUD && (
+      {isInitialized && !errorCombined && showHUD && gameState && (
         <GameHUD
           title={title}
           gameState={gameState}
