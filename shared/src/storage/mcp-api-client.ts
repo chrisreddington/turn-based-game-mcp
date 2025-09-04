@@ -6,7 +6,7 @@ import { httpGet, httpPost, WEB_API_BASE } from '../utils/http-client'
 export async function getTicTacToeGameForMCP(gameId: string): Promise<GameSession<TicTacToeGameState> | undefined> {
   try {
     // Get all games and find the one we want
-    const games = await httpGet(`${WEB_API_BASE}/api/games/tic-tac-toe`)
+    const games = await httpGet<GameSession<TicTacToeGameState>[]>(`${WEB_API_BASE}/api/games/tic-tac-toe`)
     return games.find((game: GameSession<TicTacToeGameState>) => game.gameState?.id === gameId)
   } catch (error) {
     console.error('Error fetching tic-tac-toe game via API:', error)
@@ -35,7 +35,7 @@ export async function makeTicTacToeMove(gameId: string, move: TicTacToeMove, pla
 
 export async function getRPSGameForMCP(gameId: string): Promise<GameSession<RPSGameState> | undefined> {
   try {
-    const games = await httpGet(`${WEB_API_BASE}/api/games/rock-paper-scissors/mcp`)
+    const games = await httpGet<GameSession<RPSGameState>[]>(`${WEB_API_BASE}/api/games/rock-paper-scissors/mcp`)
     return games.find((game: GameSession<RPSGameState>) => game.gameState?.id === gameId)
   } catch (error) {
     console.error('Error fetching RPS game via API:', error)
