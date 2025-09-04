@@ -364,6 +364,14 @@ export default function TicTacToePage() {
                     >
                       Join
                     </button>
+                    <Link
+                      href={`/games/tic-tac-toe/3d?join=${game.gameState.id}`}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-violet-700 transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center space-x-1"
+                      title="Join this game in 3D mode"
+                    >
+                      <span>Join in 3D</span>
+                      <span className="text-xs">🎮</span>
+                    </Link>
                     <button
                       onClick={() => handleDeleteGame(game.gameState.id)}
                       className="px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg"

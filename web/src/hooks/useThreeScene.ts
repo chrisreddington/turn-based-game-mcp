@@ -20,6 +20,9 @@ interface UseThreeSceneOptions extends Scene3DConfig {
 export function useThreeScene(options: UseThreeSceneOptions = {}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const cameraRef = useRef<THREE.Camera | null>(null)
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const [state, setState] = useState<Scene3DState>({
     scene: null,
     camera: null,
@@ -33,11 +36,24 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
   const initializeScene = useCallback(() => {
     if (!containerRef.current) return
 
+    // Prevent duplicate initialization
+    if (sceneRef.current && rendererRef.current) {
+      console.warn('Three.js scene already initialized, skipping...')
+      return
+    }
+
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       const container = containerRef.current
       const { clientWidth, clientHeight } = container
+
+      // Check if container already has a canvas to prevent duplicates
+      const existingCanvas = container.querySelector('canvas')
+      if (existingCanvas) {
+        console.warn('Canvas already exists in container, cleaning up...')
+        existingCanvas.remove()
+      }
 
       // Create scene components
       const scene = createScene(options)
@@ -46,6 +62,11 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
         options.cameraPosition || new THREE.Vector3(5, 5, 5)
       )
       const renderer = createRenderer(container, options.enableShadows)
+
+      // Store in refs for stable access
+      sceneRef.current = scene
+      cameraRef.current = camera
+      rendererRef.current = renderer
 
       // Add renderer to DOM
       container.appendChild(renderer.domElement)
@@ -67,20 +88,24 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
         error: error instanceof Error ? error.message : 'Failed to initialize 3D scene'
       }))
     }
-  }, [options])
+  }, [options.enableShadows, options.background, options.cameraPosition])
 
   // Start render loop
   const startRenderLoop = useCallback((onRender?: () => void) => {
-    if (!state.scene || !state.camera || !state.renderer) return
+    const scene = sceneRef.current
+    const camera = cameraRef.current  
+    const renderer = rendererRef.current
+    
+    if (!scene || !camera || !renderer) return
 
     const render = () => {
       if (onRender) onRender()
-      state.renderer!.render(state.scene!, state.camera!)
+      renderer.render(scene, camera)
       animationFrameRef.current = requestAnimationFrame(render)
     }
 
     render()
-  }, [state.scene, state.camera, state.renderer])
+  }, [])
 
   // Stop render loop
   const stopRenderLoop = useCallback(() => {
@@ -92,28 +117,39 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
 
   // Handle resize
   const handleSceneResize = useCallback(() => {
-    if (!containerRef.current || !state.camera || !state.renderer) return
+    const container = containerRef.current
+    const camera = cameraRef.current
+    const renderer = rendererRef.current
     
-    if (state.camera instanceof THREE.PerspectiveCamera) {
-      handleResize(state.camera, state.renderer, containerRef.current)
+    if (!container || !camera || !renderer) return
+    
+    if (camera instanceof THREE.PerspectiveCamera) {
+      handleResize(camera, renderer, container)
     }
-  }, [state.camera, state.renderer])
+  }, [])
 
   // Cleanup scene
   const cleanup = useCallback(() => {
     stopRenderLoop()
 
-    if (state.renderer) {
+    const renderer = rendererRef.current
+    const scene = sceneRef.current
+    
+    if (renderer) {
       const container = containerRef.current
-      if (container && container.contains(state.renderer.domElement)) {
-        container.removeChild(state.renderer.domElement)
+      if (container && container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement)
       }
-      state.renderer.dispose()
+      renderer.dispose()
+      rendererRef.current = null
     }
 
-    if (state.scene) {
-      disposeObject(state.scene)
+    if (scene) {
+      disposeObject(scene)
+      sceneRef.current = null
     }
+
+    cameraRef.current = null
 
     setState({
       scene: null,
@@ -123,16 +159,32 @@ export function useThreeScene(options: UseThreeSceneOptions = {}) {
       isLoading: false,
       error: null
     })
-  }, [state.renderer, state.scene, stopRenderLoop])
+  }, [stopRenderLoop])
 
   // Initialize on mount if autoStart is enabled
   useEffect(() => {
+    let mounted = true
+
     if (options.autoStart !== false) {
-      initializeScene()
+      // Add a small delay to allow container to be fully mounted
+      const timer = setTimeout(() => {
+        if (mounted) {
+          initializeScene()
+        }
+      }, 10)
+
+      return () => {
+        mounted = false
+        clearTimeout(timer)
+        cleanup()
+      }
     }
 
-    return cleanup
-  }, [initializeScene, cleanup]) // Added dependencies
+    return () => {
+      mounted = false
+      cleanup()
+    }
+  }, [initializeScene, cleanup, options.autoStart])
 
   // Handle window resize
   useEffect(() => {

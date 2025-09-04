@@ -140,10 +140,10 @@ export function TicTacToe3DBoard({
 
           if (cellValue === 'X') {
             geometry = Geometries.xShape(0.8)
-            material = Materials.colored('#E74C3C')
+            material = Materials.colored('#3B82F6') // Blue to match 2D version
           } else {
             geometry = Geometries.oShape(0.8, 0.15)
-            material = Materials.colored('#3498DB')
+            material = Materials.colored('#EF4444') // Red to match 2D version
           }
 
           const pieceMesh = new THREE.Mesh(geometry, material)

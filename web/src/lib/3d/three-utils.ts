@@ -90,26 +90,33 @@ export function createRenderer(
   container: HTMLElement,
   enableShadows: boolean = false
 ): THREE.WebGLRenderer {
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    powerPreference: 'high-performance'
-  })
+  try {
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: false,
+      failIfMajorPerformanceCaveat: false
+    })
 
-  const { clientWidth, clientHeight } = container
-  renderer.setSize(clientWidth, clientHeight)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  
-  if (enableShadows) {
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    const { clientWidth, clientHeight } = container
+    renderer.setSize(clientWidth, clientHeight)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    
+    if (enableShadows) {
+      renderer.shadowMap.enabled = true
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    }
+
+    // Tone mapping for better colors
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1
+
+    return renderer
+  } catch (error) {
+    console.error('Failed to create WebGL renderer:', error)
+    throw new Error(`WebGL renderer creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-
-  // Tone mapping for better colors
-  renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1
-
-  return renderer
 }
 
 /**

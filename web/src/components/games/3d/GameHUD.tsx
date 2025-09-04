@@ -64,6 +64,25 @@ export function GameHUD({
           
           {/* Game Status */}
           <div className="space-y-2">
+            {/* Game ID */}
+            {gameState?.id && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-300">Game ID:</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-mono bg-slate-700 px-2 py-1 rounded text-cyan-400">
+                    {gameState.id}
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(gameState.id)}
+                    className="text-xs text-slate-400 hover:text-white transition-colors duration-200"
+                    title="Copy Game ID"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-300">Status:</span>
               <span className={`text-sm font-semibold px-2 py-1 rounded ${
