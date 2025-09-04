@@ -3,6 +3,7 @@
  */
 
 import type { Camera, Scene, WebGLRenderer, Vector3 } from 'three'
+import type { TicTacToeGameState, RPSGameState } from '@turn-based-mcp/shared'
 
 /**
  * Configuration for 3D scene setup
@@ -77,7 +78,7 @@ export interface GamePiece3D {
  */
 export interface HUDProps {
   /** Current game state */
-  gameState: any
+  gameState: TicTacToeGameState | RPSGameState
   /** Camera controls help visibility */
   showCameraHelp?: boolean
   /** Loading state */

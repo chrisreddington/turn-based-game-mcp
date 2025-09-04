@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import type { GameSession, GameType, Difficulty } from '@turn-based-mcp/shared'
+import type { GameSession, GameType, Difficulty, BaseGameState } from '@turn-based-mcp/shared'
 import { detectWebGLCapabilities } from '../lib/3d/three-utils'
 import type { WebGLCapabilities } from '../types/3d'
 
@@ -18,9 +18,9 @@ interface Use3DGameOptions {
   defaultDifficulty?: Difficulty
 }
 
-interface Use3DGameState {
+interface Use3DGameState<T extends BaseGameState = BaseGameState> {
   /** Current game session */
-  gameSession: GameSession<any> | null
+  gameSession: GameSession<T> | null
   /** Loading state */
   isLoading: boolean
   /** Error message */
@@ -105,7 +105,7 @@ export function use3DGame(options: Use3DGameOptions) {
       }
 
       const games = await response.json()
-      const gameSession = games.find((game: GameSession<any>) => game.gameState.id === gameId)
+      const gameSession = games.find((game: GameSession<BaseGameState>) => game.gameState.id === gameId)
 
       if (!gameSession) {
         throw new Error('Game not found')
@@ -130,7 +130,7 @@ export function use3DGame(options: Use3DGameOptions) {
   }, [options.gameType])
 
   // Make a move in the game
-  const makeMove = useCallback(async (move: any, playerId: string = 'player1') => {
+  const makeMove = useCallback(async (move: unknown, playerId: string = 'player1') => {
     if (!state.gameSession) {
       throw new Error('No active game session')
     }

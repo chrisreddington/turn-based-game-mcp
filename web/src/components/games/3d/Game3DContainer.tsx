@@ -8,6 +8,7 @@ import { ReactNode, useEffect } from 'react'
 import * as THREE from 'three'
 import { useThreeScene } from '../../../hooks/useThreeScene'
 import { useCameraControls } from '../../../hooks/useCameraControls'
+import type { TicTacToeGameState, RPSGameState } from '@turn-based-mcp/shared'
 import { LoadingScreen3D } from './LoadingScreen'
 import { GameHUD } from './GameHUD'
 import type { Scene3DConfig, CameraControlsConfig } from '../../../types/3d'
@@ -16,7 +17,7 @@ interface Game3DContainerProps {
   /** Game title for HUD */
   title: string
   /** Game state for HUD */
-  gameState?: any
+  gameState?: TicTacToeGameState | RPSGameState
   /** Player information */
   playerInfo?: {
     name: string

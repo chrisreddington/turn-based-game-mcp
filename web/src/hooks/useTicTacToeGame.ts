@@ -167,7 +167,12 @@ export function useTicTacToeGame(options: UseTicTacToeGameOptions = {}) {
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const body: any = { 
+      const body: {
+        playerName: string
+        difficulty: Difficulty
+        playerSymbol: 'X' | 'O'
+        gameId?: string
+      } = { 
         playerName,
         difficulty,
         playerSymbol
