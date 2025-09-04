@@ -7,11 +7,24 @@
 import { useRef, useCallback, useState, useEffect } from 'react'
 import * as THREE from 'three'
 import type { RPSGameState, RPSMove } from '@turn-based-mcp/shared'
+import { usePrevious } from '../../../hooks/usePrevious'
 import { Game3DContainer } from './Game3DContainer'
 import { Materials } from '../../../lib/3d/three-utils'
 import { RPSModels } from '../../../lib/3d/rps-models'
 import { Mini3DModel } from './Mini3DModel'
 import { createMouseInteraction, type MouseInteraction } from '../../../lib/3d/mouse-interaction'
+
+/**
+ * Get the emoji representation for an RPS choice
+ */
+function getChoiceEmoji(choice: 'rock' | 'paper' | 'scissors'): string {
+  const choiceEmojis: Record<'rock' | 'paper' | 'scissors', string> = {
+    rock: '🪨',
+    paper: '📄',
+    scissors: '✂️'
+  }
+  return choiceEmojis[choice]
+}
 
 interface RPS3DGameProps {
   gameState: RPSGameState | null
@@ -57,6 +70,7 @@ export function RPS3DGame({
   const [aiJustSelected, setAIJustSelected] = useState<'rock' | 'paper' | 'scissors' | null>(null)
   const [showAISelection, setShowAISelection] = useState(false)
   const [showRoundResult, setShowRoundResult] = useState(false)
+  const [showBothSelections, setShowBothSelections] = useState(false)
 
   // Create hand geometry for different poses using enhanced models
   const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
@@ -468,7 +482,7 @@ export function RPS3DGame({
 
   // Animate AI cycling through choices using enhanced models
   const animateAICycling = useCallback(() => {
-    if (!aiChoicesRef.current || !gameState?.status || gameState.status !== 'playing' || showAISelection) return
+    if (!aiChoicesRef.current || !gameState?.status || gameState.status !== 'playing' || showAISelection || showBothSelections) return
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
     
@@ -508,11 +522,11 @@ export function RPS3DGame({
 
     // Update cycle index
     setAICycleIndex((prev) => (prev + 1) % choices.length)
-  }, [aiCycleIndex, gameState, showAISelection])
+  }, [aiCycleIndex, gameState, showAISelection, showBothSelections])
 
   // Start AI cycling animation
   useEffect(() => {
-    if (!gameState?.status || gameState.status !== 'playing' || showAISelection) return
+    if (!gameState?.status || gameState.status !== 'playing' || showAISelection || showBothSelections) return
 
     const currentRoundData = gameState.rounds[gameState.currentRound] || {}
     // Continue AI cycling until the AI has made their choice (player2Choice exists)
@@ -520,7 +534,7 @@ export function RPS3DGame({
       const interval = setInterval(animateAICycling, 800)
       return () => clearInterval(interval)
     }
-  }, [animateAICycling, gameState, isCountingDown, showAISelection])
+  }, [animateAICycling, gameState, isCountingDown, showAISelection, showBothSelections])
 
   // Reset mouse interaction setup when game state changes
   useEffect(() => {
@@ -542,13 +556,21 @@ export function RPS3DGame({
   useEffect(() => {
     if (gameState?.status === 'playing') {
       const currentRoundData = gameState.rounds[gameState.currentRound] || {}
-      if (!currentRoundData.player1Choice && !currentRoundData.player2Choice) {
+      
+      // Reset for new round when current round has no player choice yet
+      if (!currentRoundData.player1Choice) {
         // New round started, reset player choice and prepare for new selections
         setPlayerChoice(null)
         setAIJustSelected(null)
         setShowAISelection(false)
         setShowRoundResult(false)
+        setShowBothSelections(false)
         setAIChoice(null)
+        
+        // Reset processed rounds tracking for new game
+        if (gameState.currentRound === 0) {
+          processedRoundsRef.current.clear()
+        }
         
         // Reset to interactive player choice models
         if (playerChoicesRef.current) {
@@ -556,48 +578,82 @@ export function RPS3DGame({
         }
       }
     }
-  }, [gameState?.currentRound, gameState?.status, gameState?.rounds, setupPlayerChoiceModels])
+  }, [gameState?.currentRound, gameState?.status, gameState?.rounds, gameState?.id, setupPlayerChoiceModels])
 
-  // Detect when AI makes a move and show selection highlight
+  // Track which rounds have already had their 3-second display shown
+  const processedRoundsRef = useRef<Set<number>>(new Set())
+  
+  // Use usePrevious to track round completion and trigger 3-second display
+  const previousGameState = usePrevious(gameState)
+  
+  // Check for round completion and trigger 3-second display
   useEffect(() => {
-    if (!gameState) return
+    if (!gameState || !previousGameState) return
     
-    const currentRoundData = gameState.rounds[gameState.currentRound] || {}
+    // Check if currentRound just advanced (indicating a round was completed)
+    const roundJustCompleted = gameState.currentRound > previousGameState.currentRound
     
-    // Check if AI just made a move (player2Choice exists but we haven't processed it yet)
-    if (currentRoundData.player2Choice && currentRoundData.player2Choice !== aiChoice) {
-      // AI just made their selection
-      setAIJustSelected(currentRoundData.player2Choice)
-      setShowAISelection(true)
-      setShowRoundResult(false) // Hide round result initially
+    if (roundJustCompleted) {
+      // The completed round is the previous current round
+      const completedRoundIndex = previousGameState.currentRound
+      const completedRoundData = gameState.rounds[completedRoundIndex] || {}
       
-      // Rebuild AI choice models to show the selection
-      setupAIChoiceModels()
+      // Verify the round actually has complete data
+      const isRoundComplete = completedRoundData.player1Choice && 
+                             completedRoundData.player2Choice && 
+                             completedRoundData.winner !== undefined
       
-      // Show AI selection for 2.5 seconds, then show round result
-      setTimeout(() => {
-        setShowRoundResult(true)
-      }, 2500)
-      
-      // Hide the AI selection highlight after 3 seconds and prepare for next round
-      setTimeout(() => {
-        setShowAISelection(false)
-        setAIJustSelected(null)
+      // Only trigger if round is complete and we haven't processed it yet
+      if (isRoundComplete && 
+          !showBothSelections &&
+          !processedRoundsRef.current.has(completedRoundIndex)) {
         
-        // If the round is complete and game is still playing, prepare for next round
-        if (gameState.status === 'playing' && gameState.currentRound < gameState.maxRounds - 1) {
-          // Check if this was the last move of the round
-          if (currentRoundData.player1Choice && currentRoundData.player2Choice) {
-            // Round complete, will transition to next round soon
-            // The round transition useEffect will handle resetting to selection mode
-          }
-        }
+        // Mark this round as processed to prevent duplicate displays
+        processedRoundsRef.current.add(completedRoundIndex)
         
-        // Rebuild AI models without selection highlight
+        // Both player and AI have made their selections and round is complete
+        // Type assertion since we've already checked these values exist
+        setAIJustSelected(completedRoundData.player2Choice as 'rock' | 'paper' | 'scissors')
+        setPlayerChoice(completedRoundData.player1Choice as 'rock' | 'paper' | 'scissors')
+        setShowBothSelections(true)
+        setShowAISelection(true)
+        setShowRoundResult(false)
+        
+        console.log('3-second display started for round:', completedRoundIndex, {
+          player1Choice: completedRoundData.player1Choice,
+          player2Choice: completedRoundData.player2Choice,
+          winner: completedRoundData.winner,
+          processedRounds: Array.from(processedRoundsRef.current),
+          currentRound: gameState.currentRound,
+          previousCurrentRound: previousGameState.currentRound
+        })
+        
+        // Rebuild both player and AI choice models to show selections
+        setupPlayerChoiceModelsLocked(completedRoundData.player1Choice as 'rock' | 'paper' | 'scissors')
         setupAIChoiceModels()
-      }, 3000)
+        
+        // Show both selections for exactly 3 seconds
+        setTimeout(() => {
+          console.log('3-second display ended for round:', completedRoundIndex)
+          
+          // After 3 seconds, remove highlights and show round result
+          setShowBothSelections(false)
+          setShowAISelection(false)
+          setShowRoundResult(true)
+          setAIJustSelected(null)
+          
+          // Clear player choice for the next round so they can make a fresh selection
+          setPlayerChoice(null)
+          
+          // Rebuild AI models without selection highlight to remove all highlights
+          setupAIChoiceModels()
+          
+          // Rebuild interactive player choice models for the next round
+          setupPlayerChoiceModels()
+        }, 3000) // Exactly 3 seconds as requested
+      }
     }
-  }, [gameState, aiChoice, setupAIChoiceModels])
+  }, [gameState, previousGameState, showBothSelections, setupPlayerChoiceModelsLocked, setupAIChoiceModels])
 
   // Update hands based on game state
   const updateHands = useCallback(() => {
@@ -957,6 +1013,36 @@ export function RPS3DGame({
                     <span className="text-cyan-400">
                       {gameState.currentRound + 1} / {gameState.maxRounds}
                     </span>
+                  </div>
+                )}
+
+                {/* Round History */}
+                {gameState && gameState.currentRound > 0 && (
+                  <div className="pt-2 border-t border-slate-600">
+                    <div className="text-xs text-slate-300 mb-2 flex items-center space-x-1">
+                      <span>🏆</span>
+                      <span>Round History</span>
+                    </div>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {gameState.rounds.slice(0, gameState.currentRound).map((round, index) => (
+                        <div key={index} className="flex items-center justify-between bg-slate-800/50 p-1 rounded text-xs">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-slate-400">R{index + 1}:</span>
+                            <span title={`You chose ${round.player1Choice}`}>
+                              {getChoiceEmoji(round.player1Choice!)}
+                            </span>
+                            <span className="text-slate-500">vs</span>
+                            <span title={`AI chose ${round.player2Choice}`}>
+                              {getChoiceEmoji(round.player2Choice!)}
+                            </span>
+                          </div>
+                          <span className="text-xs">
+                            {round.winner === 'draw' ? '🤝' :
+                             round.winner === 'player1' ? '🎉' : '🤖'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
