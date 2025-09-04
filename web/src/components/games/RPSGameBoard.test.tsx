@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { RPSGameBoard } from './RPSGameBoard';
 import type { RPSGameState, RPSChoice } from '@turn-based-mcp/shared';
 
@@ -28,6 +28,11 @@ describe('RPSGameBoard', () => {
 
   beforeEach(() => {
     mockOnMove.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('rendering', () => {
@@ -152,7 +157,7 @@ describe('RPSGameBoard', () => {
   });
 
   describe('round display', () => {
-    it('should show completed round result', () => {
+    it('should show completed round result', async () => {
       const gameState = createMockGameState({
         rounds: [
           { player1Choice: 'rock', player2Choice: 'scissors', winner: 'player1' },
@@ -163,15 +168,20 @@ describe('RPSGameBoard', () => {
       });
       render(<RPSGameBoard gameState={gameState} onMove={mockOnMove} />);
 
-      expect(screen.getAllByText('🪨')).toHaveLength(2); // Rock emoji (in round result and button)
-      expect(screen.getAllByText('✂️')).toHaveLength(2); // Scissors emoji (in round result and button)
-      expect(screen.getByText('You win this round!')).toBeInTheDocument();
+      // Fast-forward past the AI choice reveal timeout (2000ms)
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.getAllByText('🪨')).toHaveLength(3); // Rock emoji (in round result and button)
+      expect(screen.getAllByText('✂️')).toHaveLength(3); // Scissors emoji (in round result and button)
+      expect(screen.getByText('🎉 You win this round!')).toBeInTheDocument();
     });
 
-    it('should show AI wins round', () => {
+    it('should show AI wins round', async () => {
       const gameState = createMockGameState({
         rounds: [
-          { player1Choice: 'rock', player2Choice: 'paper', winner: 'player2' },
+          { player1Choice: 'rock', player2Choice: 'paper', winner: 'ai' },
           {},
           {}
         ],
@@ -179,10 +189,15 @@ describe('RPSGameBoard', () => {
       });
       render(<RPSGameBoard gameState={gameState} onMove={mockOnMove} />);
 
-      expect(screen.getByText('AI wins this round!')).toBeInTheDocument();
+      // Fast-forward past the AI choice reveal timeout (2000ms)
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.getByText('🤖 AI wins this round!')).toBeInTheDocument();
     });
 
-    it('should show draw round', () => {
+    it('should show draw round', async () => {
       const gameState = createMockGameState({
         rounds: [
           { player1Choice: 'rock', player2Choice: 'rock', winner: 'draw' },
@@ -193,7 +208,12 @@ describe('RPSGameBoard', () => {
       });
       render(<RPSGameBoard gameState={gameState} onMove={mockOnMove} />);
 
-      expect(screen.getByText('Draw!')).toBeInTheDocument();
+      // Fast-forward past the AI choice reveal timeout (2000ms)
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.getByText('🤝 Draw!')).toBeInTheDocument();
     });
 
     it('should not show round result when round not complete', () => {

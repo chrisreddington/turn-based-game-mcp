@@ -3,7 +3,6 @@
  */
 
 import * as THREE from 'three'
-import { Materials } from './three-utils'
 
 /**
  * Create detailed 3D models for Rock Paper Scissors game
@@ -177,7 +176,7 @@ export class RPSModels {
   /**
    * Create an animated version that can cycle between choices
    */
-  static createAnimatedChoice(scale: number = 1): THREE.Group {
+  static createAnimatedChoice(_scale: number = 1): THREE.Group {
     const container = new THREE.Group()
     container.name = 'animated-choice-container'
     return container
@@ -186,7 +185,7 @@ export class RPSModels {
   /**
    * Update animated choice to show specific option
    */
-  static updateAnimatedChoice(container: THREE.Group, choice: 'rock' | 'paper' | 'scissors', scale: number = 1): void {
+  static updateAnimatedChoice(container: THREE.Group, choice: 'rock' | 'paper' | 'scissors', _scale: number = 1): void {
     // Clear existing model
     container.clear()
     
@@ -194,13 +193,13 @@ export class RPSModels {
     let newModel: THREE.Group
     switch (choice) {
       case 'rock':
-        newModel = this.createRock(scale)
+        newModel = this.createRock(_scale)
         break
       case 'paper':
-        newModel = this.createPaper(scale)
+        newModel = this.createPaper(_scale)
         break
       case 'scissors':
-        newModel = this.createScissors(scale)
+        newModel = this.createScissors(_scale)
         break
     }
     
