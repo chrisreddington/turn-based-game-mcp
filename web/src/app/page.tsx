@@ -94,6 +94,67 @@ export default function HomePage() {
         ))}
       </div>
 
+      {/* 3D Games Section */}
+      <div className="text-center mb-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-4">
+          🎮 Experience in 3D
+        </h2>
+        <p className="text-lg text-slate-600 dark:text-slate-300 mb-8 max-w-3xl mx-auto">
+          Take your gaming to the next dimension! Play in immersive 3D environments with interactive camera controls, 
+          realistic lighting, and stunning visual effects.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {AVAILABLE_GAMES.map((game) => (
+            <div
+              key={`${game.type}-3d`}
+              className="group bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800 hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl mb-4 mx-auto">
+                {game.type === 'tic-tac-toe' ? (
+                  <span className="text-2xl">🎯</span>
+                ) : (
+                  <span className="text-2xl">⚔️</span>
+                )}
+              </div>
+              
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                3D {getGameDisplayName(game.type)}
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
+                {game.type === 'tic-tac-toe' 
+                  ? 'Rotate around a 3D board, click cells to play, and watch pieces animate in real-time!'
+                  : 'Watch animated 3D hands battle it out with dramatic reveals and victory effects!'
+                }
+              </p>
+              
+              <div className="space-y-3">
+                <Link
+                  href={`/games/${game.type}/3d`}
+                  className="w-full inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Play in 3D
+                  <span className="ml-2 text-lg">🎮</span>
+                </Link>
+                
+                <div className="flex items-center justify-center space-x-4 text-xs text-slate-500 dark:text-slate-400">
+                  <span>• Camera Controls</span>
+                  <span>• Realistic Physics</span>
+                  <span>• 3D Animations</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="mt-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800 max-w-md mx-auto">
+          <div className="flex items-center justify-center space-x-2 text-amber-700 dark:text-amber-300">
+            <span className="text-lg">💡</span>
+            <span className="text-sm font-medium">Requires WebGL-enabled browser</span>
+          </div>
+        </div>
+      </div>
+
       {/* How It Works Section */}
       <div className="text-center">
         <div className="relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm rounded-2xl shadow-xl p-8 sm:p-10 max-w-4xl mx-auto border border-white/20 dark:border-slate-700/50">

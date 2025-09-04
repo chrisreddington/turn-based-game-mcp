@@ -52,6 +52,14 @@ export default function RootLayout({
                 >
                   Rock Paper Scissors
                 </Link>
+                <div className="h-4 w-px bg-slate-300 dark:bg-slate-600"></div>
+                <Link
+                  href="/games/tic-tac-toe/3d"
+                  className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-200 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-purple-100 dark:hover:bg-purple-900/20 flex items-center space-x-1"
+                >
+                  <span>3D</span>
+                  <span className="text-xs">🎮</span>
+                </Link>
               </nav>
             </div>
           </div>

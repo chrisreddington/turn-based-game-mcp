@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { TicTacToeBoard } from '../../../components/games/TicTacToeBoard'
 import { GameInfoPanel } from '../../../components/games/GameInfoPanel'
 import { GameContainer, GameControls, ConfirmationModal } from '../../../components/ui'
@@ -261,7 +262,21 @@ export default function TicTacToePage() {
     )
 
     return (
-      <>
+      <div>
+        {/* Header with 3D Link */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="flex items-center justify-between">
+            <div></div>
+            <Link
+              href="/games/tic-tac-toe/3d"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+            >
+              <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">🎮</span>
+              Play in 3D
+            </Link>
+          </div>
+        </div>
+        
         <GameContainer
           title="Tic-Tac-Toe"
           description="Get three in a row to win! You are X, AI is O."
@@ -283,7 +298,7 @@ export default function TicTacToePage() {
           isLoading={isDeleting}
           danger={true}
         />
-      </>
+      </div>
     )
   }
   // Render game creation/joining UI when no session exists
@@ -540,7 +555,21 @@ export default function TicTacToePage() {
     )
 
     return (
-      <>
+      <div>
+        {/* Header with 3D Link */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="flex items-center justify-between">
+            <div></div>
+            <Link
+              href="/games/tic-tac-toe/3d"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+            >
+              <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">🎮</span>
+              Play in 3D
+            </Link>
+          </div>
+        </div>
+        
         <GameContainer
           title="Tic-Tac-Toe"
           description="Get three in a row to win! You are X, AI is O."
@@ -563,20 +592,36 @@ export default function TicTacToePage() {
           isLoading={isDeleting}
           danger={true}
         />
-      </>
+      </div>
     )
   }
 
   // Loading state
   return (
-    <GameContainer
-      title="Tic-Tac-Toe"
-      description="Get three in a row to win! You are X, AI is O."
-      gameBoard={<div className="text-center py-8">Loading...</div>}
-      sidebar={<div></div>}
-      error={error}
-      onErrorDismiss={handleErrorDismiss}
-      isSetupScreen={true}
-    />
+    <div>
+      {/* Header with 3D Link */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="flex items-center justify-between">
+          <div></div>
+          <Link
+            href="/games/tic-tac-toe/3d"
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+          >
+            <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">🎮</span>
+            Play in 3D
+          </Link>
+        </div>
+      </div>
+      
+      <GameContainer
+        title="Tic-Tac-Toe"
+        description="Get three in a row to win! You are X, AI is O."
+        gameBoard={<div className="text-center py-8">Loading...</div>}
+        sidebar={<div></div>}
+        error={error}
+        onErrorDismiss={handleErrorDismiss}
+        isSetupScreen={true}
+      />
+    </div>
   )
 }

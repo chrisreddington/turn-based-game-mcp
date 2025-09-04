@@ -17,13 +17,16 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.4",
+    "@react-three/fiber": "^9.3.0",
     "@turn-based-mcp/shared": "file:../shared",
     "clsx": "^2.1.0",
     "next": "^15.4.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "sqlite3": "^5.1.7",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
@@ -33,6 +36,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
+    "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.0.1",
     "@vitest/ui": "^3.2.4",
     "eslint": "^9.34.0",

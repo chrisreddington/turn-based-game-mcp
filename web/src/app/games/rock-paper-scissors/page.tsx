@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { RPSGameBoard } from '../../../components/games/RPSGameBoard'
 import { GameInfoPanel } from '../../../components/games/GameInfoPanel'
 import { GameContainer, GameControls, ConfirmationModal } from '../../../components/ui'
@@ -279,7 +280,21 @@ export default function RockPaperScissorsPage() {
     )
 
     return (
-      <>
+      <div>
+        {/* Header with 3D Link */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="flex items-center justify-between">
+            <div></div>
+            <Link
+              href="/games/rock-paper-scissors/3d"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-semibold rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+            >
+              <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">⚔️</span>
+              Play in 3D
+            </Link>
+          </div>
+        </div>
+        
         <GameContainer
           title="Rock Paper Scissors"
           description={`Play ${gameSession.gameState.maxRounds} round${gameSession.gameState.maxRounds !== 1 ? 's' : ''}! Rock beats Scissors, Scissors beats Paper, Paper beats Rock.`}
@@ -299,7 +314,7 @@ export default function RockPaperScissorsPage() {
           isLoading={isDeleting}
           danger={true}
         />
-      </>
+      </div>
     )
   }
 
@@ -549,7 +564,21 @@ export default function RockPaperScissorsPage() {
     )
 
     return (
-      <>
+      <div>
+        {/* Header with 3D Link */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="flex items-center justify-between">
+            <div></div>
+            <Link
+              href="/games/rock-paper-scissors/3d"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-semibold rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+            >
+              <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">⚔️</span>
+              Play in 3D
+            </Link>
+          </div>
+        </div>
+        
         <GameContainer
           title="Rock Paper Scissors"
           description={`Play ${maxRounds} round${maxRounds !== 1 ? 's' : ''}! Rock beats Scissors, Scissors beats Paper, Paper beats Rock.`}
@@ -570,13 +599,27 @@ export default function RockPaperScissorsPage() {
           isLoading={isDeleting}
           danger={true}
         />
-      </>
+      </div>
     )
   }
 
   // Loading state
   return (
-    <>
+    <div>
+      {/* Header with 3D Link */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="flex items-center justify-between">
+          <div></div>
+          <Link
+            href="/games/rock-paper-scissors/3d"
+            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-semibold rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
+          >
+            <span className="text-lg mr-2 group-hover:scale-110 transition-transform duration-200">⚔️</span>
+            Play in 3D
+          </Link>
+        </div>
+      </div>
+      
       <GameContainer
         title="Rock Paper Scissors"
         description="Best of 3 rounds! Rock beats Scissors, Scissors beats Paper, Paper beats Rock."
@@ -597,6 +640,6 @@ export default function RockPaperScissorsPage() {
         isLoading={isDeleting}
         danger={true}
       />
-    </>
+    </div>
   )
 }
