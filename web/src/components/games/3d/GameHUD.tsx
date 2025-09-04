@@ -60,8 +60,6 @@ export function GameHUD({
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-auto">
         {/* Game Info Panel */}
         <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 text-white min-w-64">
-          <h1 className="text-lg font-bold text-blue-400 mb-3">{title}</h1>
-          
           {/* Game Status */}
           <div className="space-y-2">
             {/* Game ID */}
@@ -79,6 +77,32 @@ export function GameHUD({
                   >
                     📋
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Players */}
+            {(playerInfo || aiInfo) && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-300">Players:</span>
+                <div className="flex items-center space-x-2">
+                  {playerInfo && (
+                    <div className="flex items-center space-x-1">
+                      <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                        <span className="text-xs font-bold">{playerInfo.symbol || 'P'}</span>
+                      </div>
+                      <span className="text-xs text-blue-400">{playerInfo.name}</span>
+                    </div>
+                  )}
+                  {playerInfo && aiInfo && <span className="text-xs text-slate-400">vs</span>}
+                  {aiInfo && (
+                    <div className="flex items-center space-x-1">
+                      <div className="w-5 h-5 bg-red-600 rounded flex items-center justify-center">
+                        <span className="text-xs font-bold">{aiInfo.symbol || '🤖'}</span>
+                      </div>
+                      <span className="text-xs text-red-400">{aiInfo.name}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -138,9 +162,21 @@ export function GameHUD({
           </div>
         </div>
 
-        {/* Camera Controls Help */}
+        {/* Navigation & Camera Controls */}
         {showCameraHelp && (
           <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 text-white max-w-64">
+            {/* Navigation to 2D Mode */}
+            <div className="mb-3 pb-3 border-b border-slate-600">
+              <a
+                href={`/games/${title.toLowerCase().replace(/\s+/g, '-')}`}
+                className="inline-flex items-center space-x-2 px-3 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors duration-200 w-full justify-center"
+              >
+                <span>📱</span>
+                <span>2D Mode</span>
+              </a>
+            </div>
+            
+            {/* Camera Controls Help */}
             <h3 className="text-sm font-bold text-purple-400 mb-2">🎮 Camera Controls</h3>
             <div className="text-xs text-slate-300 space-y-1">
               <div>• <strong>Left click + drag:</strong> Rotate</div>
@@ -159,25 +195,8 @@ export function GameHUD({
         )}
       </div>
 
-      {/* Bottom HUD */}
-      <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-auto">
-        {/* Player Info */}
-        {playerInfo && (
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 text-white">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-bold">{playerInfo.symbol || 'P'}</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{playerInfo.name}</div>
-                {playerInfo.score !== undefined && (
-                  <div className="text-xs text-slate-300">Score: {playerInfo.score}</div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
+      {/* Bottom HUD - Game Controls Only */}
+      <div className="absolute bottom-4 right-4 flex justify-end items-end pointer-events-auto">
         {/* Game Controls */}
         <div className="flex items-center space-x-2">
           {onReset && (
@@ -199,28 +218,6 @@ export function GameHUD({
             </button>
           )}
         </div>
-
-        {/* AI Info */}
-        {aiInfo && (
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 text-white">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-bold">{aiInfo.symbol || '🤖'}</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{aiInfo.name}</div>
-                <div className="text-xs text-slate-300 flex items-center space-x-2">
-                  {aiInfo.difficulty && (
-                    <span>Difficulty: {aiInfo.difficulty}</span>
-                  )}
-                  {aiInfo.score !== undefined && (
-                    <span>Score: {aiInfo.score}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Center HUD for additional content */}

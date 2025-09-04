@@ -10,7 +10,6 @@ import { TicTacToe3DBoard } from '../games/3d/TicTacToe3DBoard'
 import { GameInfoPanel } from '../games/GameInfoPanel'
 import { GameContainer, GameControls, ConfirmationModal } from '../ui'
 import { MCPAssistantPanel } from '../shared'
-import { FullViewport3DLayout } from '../layout/FullViewport3DLayout'
 import { useTicTacToeGame, ViewMode } from '../../hooks/useTicTacToeGame'
 import type { TicTacToeMove, Difficulty } from '@turn-based-mcp/shared'
 
@@ -58,6 +57,9 @@ export function UnifiedTicTacToe({
   const [customGameId, setCustomGameId] = useState('')
   const [joinGameId, setJoinGameId] = useState('')
   const [gamesToShow, setGamesToShow] = useState(5)
+
+  // 3D-specific state that persists across view mode switches
+  const [piecePlacementMode, setPiecePlacementMode] = useState<'standing' | 'flat'>('standing')
 
   // Deletion state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -151,6 +153,9 @@ export function UnifiedTicTacToe({
           error={error}
           onReset={resetGame}
           onNewGame={() => handleCreateGame('3d')}
+          onSwitchTo2D={handleSwitchTo2D}
+          piecePlacementMode={piecePlacementMode}
+          onPiecePlacementModeChange={setPiecePlacementMode}
           className="w-full h-full"
         />
       )
@@ -168,15 +173,11 @@ export function UnifiedTicTacToe({
   // 3D full-screen mode
   if (gameSession && viewMode === '3d') {
     return (
-      <FullViewport3DLayout
-        title="3D Tic-Tac-Toe"
-        onSwitchTo2D={handleSwitchTo2D}
-        showControls={true}
-      >
+      <div className="fixed inset-0 bg-slate-900">
         <div className="w-full h-full">
           {renderGameBoard()}
         </div>
-      </FullViewport3DLayout>
+      </div>
     )
   }
 

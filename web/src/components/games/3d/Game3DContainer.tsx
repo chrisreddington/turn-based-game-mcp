@@ -40,6 +40,8 @@ interface Game3DContainerProps {
   error?: string | null
   /** Show WebGL fallback */
   showFallback?: boolean
+  /** Show built-in HUD */
+  showHUD?: boolean
   /** Render function for 3D content */
   onRender?: (scene: THREE.Scene, camera: THREE.Camera) => void
   /** Game control handlers */
@@ -64,6 +66,7 @@ export function Game3DContainer({
   isLoading: externalLoading = false,
   error: externalError = null,
   showFallback = true,
+  showHUD = true,
   onRender,
   onReset,
   onNewGame,
@@ -197,7 +200,7 @@ export function Game3DContainer({
       )}
 
       {/* Game HUD */}
-      {isInitialized && !errorCombined && (
+      {isInitialized && !errorCombined && showHUD && (
         <GameHUD
           title={title}
           gameState={gameState}
@@ -211,6 +214,13 @@ export function Game3DContainer({
         >
           {children}
         </GameHUD>
+      )}
+
+      {/* Custom HUD when built-in is disabled */}
+      {isInitialized && !errorCombined && !showHUD && children && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {children}
+        </div>
       )}
     </div>
   )
