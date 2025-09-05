@@ -71,6 +71,7 @@ export function RPS3DGame({
   const [showAISelection, setShowAISelection] = useState(false)
   const [showRoundResult, setShowRoundResult] = useState(false)
   const [showBothSelections, setShowBothSelections] = useState(false)
+  const [forceAIModelsRebuild, setForceAIModelsRebuild] = useState(0)
 
   // Create hand geometry for different poses using enhanced models
   const createHandGeometry = useCallback((pose: 'rock' | 'paper' | 'scissors') => {
@@ -171,6 +172,8 @@ export function RPS3DGame({
 
     // Clear existing models
     playerChoicesRef.current.clear()
+
+    console.log('setupPlayerChoiceModels called - setting up interactive models')
 
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors']
     const selectableObjects: THREE.Object3D[] = []
@@ -305,6 +308,12 @@ export function RPS3DGame({
     const aiLabel = createPlayerLabel(aiName, new THREE.Vector3(0, 1.5, 0), '#FF6B6B')
     aiChoicesRef.current.add(aiLabel)
 
+    console.log('setupAIChoiceModels called:', {
+      showAISelection,
+      aiJustSelected,
+      choices
+    })
+
     choices.forEach((choice, index) => {
       let model: THREE.Group
       switch (choice) {
@@ -325,8 +334,21 @@ export function RPS3DGame({
       model.userData = { choice, type: 'ai-choice' }
       model.name = `ai-choice-${choice}`
       
-      // If we're showing AI selection and this is the selected choice, highlight it
-      if (showAISelection && aiJustSelected === choice) {
+      // Apply appropriate styling based on current state
+      const isSelected = showAISelection && aiJustSelected === choice
+      const isNotSelected = showAISelection && aiJustSelected !== choice
+      const isNormalState = !showAISelection
+      
+      console.log(`Processing choice ${choice}:`, {
+        isSelected,
+        isNotSelected,
+        isNormalState,
+        aiJustSelected,
+        showAISelection
+      })
+      
+      if (isSelected) {
+        // This is the AI's selected choice - highlight it prominently
         model.scale.setScalar(1.3)
         RPSModels.addGlowEffect(model, '#FF6B6B', 1.0)
         
@@ -336,10 +358,9 @@ export function RPS3DGame({
         
         // Add a pulsing animation to the selected choice
         model.userData.animateSelection = true
-      } else if (!showAISelection) {
-        // Normal state - just add the model without highlighting
-        RPSModels.addGlowEffect(model, '#FF6B6B', 0.1)
-      } else {
+        
+        console.log(`Applied SELECTED styling to ${choice}`)
+      } else if (isNotSelected) {
         // Non-selected choices during AI selection display are dimmed
         model.scale.setScalar(0.5)
         RPSModels.addGlowEffect(model, '#333333', 0.05)
@@ -360,16 +381,41 @@ export function RPS3DGame({
             }
           }
         })
+        
+        console.log(`Applied DIMMED styling to ${choice}`)
+      } else {
+        // Normal state - just add the model with subtle default glow
+        model.scale.setScalar(1.0)
+        RPSModels.addGlowEffect(model, '#FF6B6B', 0.1)
+        
+        // Ensure materials are fully opaque
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => {
+                if (mat instanceof THREE.MeshStandardMaterial) {
+                  mat.opacity = 1.0
+                  mat.transparent = false
+                }
+              })
+            } else if (child.material instanceof THREE.MeshStandardMaterial) {
+              child.material.opacity = 1.0
+              child.material.transparent = false
+            }
+          }
+        })
+        
+        console.log(`Applied NORMAL styling to ${choice}`)
       }
       
       aiChoicesRef.current!.add(model)
 
       // Add 3D floating label that's visible from all directions
-      const labelColor = showAISelection && aiJustSelected === choice ? '#FF6B6B' : '#FFFFFF'
+      const labelColor = isSelected ? '#FF6B6B' : '#FFFFFF'
       const label3D = create3DText(choice.toUpperCase(), new THREE.Vector3(model.position.x, 0.8, 0), labelColor)
       aiChoicesRef.current!.add(label3D)
     })
-  }, [gameState, createPlayerLabel, create3DText, showAISelection, aiJustSelected])
+  }, [gameState, createPlayerLabel, create3DText, showAISelection, aiJustSelected, forceAIModelsRebuild])
 
   // Setup mouse interaction for player choices
   const setupMouseInteraction = useCallback((selectableObjects: THREE.Object3D[], container: HTMLElement, camera: THREE.Camera, scene: THREE.Scene) => {
@@ -559,6 +605,13 @@ export function RPS3DGame({
       
       // Reset for new round when current round has no player choice yet
       if (!currentRoundData.player1Choice) {
+        console.log('New round detected, resetting player state:', {
+          currentRound: gameState.currentRound,
+          playerChoice,
+          showBothSelections,
+          showAISelection
+        })
+        
         // New round started, reset player choice and prepare for new selections
         setPlayerChoice(null)
         setAIJustSelected(null)
@@ -572,13 +625,14 @@ export function RPS3DGame({
           processedRoundsRef.current.clear()
         }
         
-        // Reset to interactive player choice models
-        if (playerChoicesRef.current) {
+        // Reset to interactive player choice models - but only if we're not in a transition state
+        if (playerChoicesRef.current && !showBothSelections && !showAISelection) {
+          console.log('Setting up interactive player models for new round')
           setupPlayerChoiceModels()
         }
       }
     }
-  }, [gameState?.currentRound, gameState?.status, gameState?.rounds, gameState?.id, setupPlayerChoiceModels])
+  }, [gameState?.currentRound, gameState?.status, gameState?.rounds, gameState?.id, setupPlayerChoiceModels, playerChoice, showBothSelections, showAISelection])
 
   // Track which rounds have already had their 3-second display shown
   const processedRoundsRef = useRef<Set<number>>(new Set())
@@ -613,15 +667,19 @@ export function RPS3DGame({
         
         // Both player and AI have made their selections and round is complete
         // Type assertion since we've already checked these values exist
-        setAIJustSelected(completedRoundData.player2Choice as 'rock' | 'paper' | 'scissors')
-        setPlayerChoice(completedRoundData.player1Choice as 'rock' | 'paper' | 'scissors')
+        const aiChoiceForRound = completedRoundData.player2Choice as 'rock' | 'paper' | 'scissors'
+        const playerChoiceForRound = completedRoundData.player1Choice as 'rock' | 'paper' | 'scissors'
+        
+        setAIJustSelected(aiChoiceForRound)
+        setPlayerChoice(playerChoiceForRound)
         setShowBothSelections(true)
         setShowAISelection(true)
         setShowRoundResult(false)
         
         console.log('3-second display started for round:', completedRoundIndex, {
-          player1Choice: completedRoundData.player1Choice,
-          player2Choice: completedRoundData.player2Choice,
+          player1Choice: playerChoiceForRound,
+          player2Choice: aiChoiceForRound,
+          aiJustSelected: aiChoiceForRound,
           winner: completedRoundData.winner,
           processedRounds: Array.from(processedRoundsRef.current),
           currentRound: gameState.currentRound,
@@ -629,12 +687,17 @@ export function RPS3DGame({
         })
         
         // Rebuild both player and AI choice models to show selections
+        // Note: setupAIChoiceModels will be called by useEffect when state updates
         setupPlayerChoiceModelsLocked(completedRoundData.player1Choice as 'rock' | 'paper' | 'scissors')
-        setupAIChoiceModels()
         
         // Show both selections for exactly 3 seconds
         setTimeout(() => {
           console.log('3-second display ended for round:', completedRoundIndex)
+          console.log('State before cleanup:', {
+            showAISelection,
+            aiJustSelected,
+            showBothSelections
+          })
           
           // After 3 seconds, remove highlights and show round result
           setShowBothSelections(false)
@@ -642,28 +705,54 @@ export function RPS3DGame({
           setShowRoundResult(true)
           setAIJustSelected(null)
           
+          console.log('State after cleanup set (will take effect after re-render):', {
+            showAISelection: false,
+            aiJustSelected: null,
+            showBothSelections: false
+          })
+          
           // Clear player choice for the next round so they can make a fresh selection
           setPlayerChoice(null)
           
-          // Rebuild AI models without selection highlight to remove all highlights
-          setupAIChoiceModels()
+          // Force rebuild of AI models by incrementing counter
+          setForceAIModelsRebuild(prev => prev + 1)
           
-          // Rebuild interactive player choice models for the next round
-          setupPlayerChoiceModels()
+          // Note: Player choice models will be rebuilt automatically by the useEffect
+          // that watches for round changes - adding a small delay to ensure clean transition
+          setTimeout(() => {
+            if (playerChoicesRef.current && !showBothSelections && !showAISelection) {
+              console.log('Delayed setup of interactive player models after cleanup')
+              setupPlayerChoiceModels()
+            }
+          }, 100)
         }, 3000) // Exactly 3 seconds as requested
       }
     }
   }, [gameState, previousGameState, showBothSelections, setupPlayerChoiceModelsLocked, setupAIChoiceModels])
 
-  // Update hands based on game state
+  // Rebuild AI choice models when showAISelection or aiJustSelected changes
+  useEffect(() => {
+    // Only rebuild if we have a valid scene and the component is fully mounted
+    if (aiChoicesRef.current && gameGroupRef.current) {
+      console.log('AI state changed, rebuilding models:', {
+        showAISelection,
+        aiJustSelected,
+        timestamp: Date.now()
+      })
+      setupAIChoiceModels()
+    }
+  }, [showAISelection, aiJustSelected, setupAIChoiceModels])
+
+  // Update hands based on game state - only show hands when both players have made choices
   const updateHands = useCallback(() => {
     if (!gameState || !playerHandRef.current || !aiHandRef.current) return
 
     // Get current round using proper index
     const currentRoundData = gameState.rounds[gameState.currentRound] || {}
     
-    if (currentRoundData) {
-      // Update player hand
+    // Only show hands during the 3-second reveal phase when both choices are made
+    if (currentRoundData && showBothSelections) {
+      // Update player hand only if showing both selections
       if (currentRoundData.player1Choice && playerChoice !== currentRoundData.player1Choice) {
         // Clear previous hand
         playerHandRef.current.clear()
@@ -675,7 +764,7 @@ export function RPS3DGame({
         setPlayerChoice(currentRoundData.player1Choice)
       }
 
-      // Update AI hand
+      // Update AI hand only if showing both selections
       if (currentRoundData.player2Choice && aiChoice !== currentRoundData.player2Choice) {
         // Clear previous hand
         aiHandRef.current.clear()
@@ -688,16 +777,16 @@ export function RPS3DGame({
       }
 
       // If round is complete, animate reveal
-      if (currentRound.player1Choice && currentRound.player2Choice && currentRound.winner) {
+      if (currentRoundData.player1Choice && currentRoundData.player2Choice && currentRoundData.winner) {
         // Add winner effects using enhanced glow system
         setTimeout(() => {
-          if (currentRound.winner === 'player1' && playerHandRef.current?.children[0]) {
+          if (currentRoundData.winner === 'player1' && playerHandRef.current?.children[0]) {
             // Player wins - green glow effect
             RPSModels.addGlowEffect(playerHandRef.current.children[0] as THREE.Group, '#00FF00', 0.7)
-          } else if (currentRound.winner === 'ai' && aiHandRef.current?.children[0]) {
+          } else if (currentRoundData.winner === 'ai' && aiHandRef.current?.children[0]) {
             // AI wins - red glow effect
             RPSModels.addGlowEffect(aiHandRef.current.children[0] as THREE.Group, '#FF0000', 0.7)
-          } else if (currentRound.winner === 'draw') {
+          } else if (currentRoundData.winner === 'draw') {
             // Draw - both get yellow glow
             if (playerHandRef.current?.children[0]) {
               RPSModels.addGlowEffect(playerHandRef.current.children[0] as THREE.Group, '#FFD700', 0.5)
@@ -708,8 +797,12 @@ export function RPS3DGame({
           }
         }, 500)
       }
+    } else {
+      // Clear hands when not in reveal phase
+      playerHandRef.current.clear()
+      aiHandRef.current.clear()
     }
-  }, [gameState, aiChoice, playerChoice, createHandGeometry])
+  }, [gameState, aiChoice, playerChoice, createHandGeometry, showBothSelections])
 
   // Update billboarded text to always face the camera
   const updateBillboards = useCallback((scene: THREE.Scene, camera: THREE.Camera) => {

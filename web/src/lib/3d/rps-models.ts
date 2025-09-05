@@ -127,7 +127,7 @@ export class RPSModels {
     rightBlade.position.y = 0.2 * scale
     scissorsGroup.add(rightBlade)
     
-    // Handle for left blade
+    // Handle for left blade - positioned at base of left blade
     const handleGeometry = new THREE.TorusGeometry(0.12 * scale, 0.02 * scale, 6, 10)
     const handleMaterial = new THREE.MeshStandardMaterial({
       color: 0x8B4513,
@@ -136,16 +136,16 @@ export class RPSModels {
     })
     
     const leftHandle = new THREE.Mesh(handleGeometry, handleMaterial)
-    leftHandle.position.x = -0.15 * scale
-    leftHandle.position.y = -0.2 * scale
-    leftHandle.rotation.x = Math.PI / 2
+    leftHandle.position.x = -0.13 * scale  // Move inward to connect to blade
+    leftHandle.position.y = -0.15 * scale  // Move down to base of blade
+    leftHandle.rotation.z = Math.PI / 6    // Rotate to align with blade angle
     scissorsGroup.add(leftHandle)
     
-    // Handle for right blade
+    // Handle for right blade - positioned at base of right blade
     const rightHandle = new THREE.Mesh(handleGeometry, handleMaterial)
-    rightHandle.position.x = 0.15 * scale
-    rightHandle.position.y = -0.2 * scale
-    rightHandle.rotation.x = Math.PI / 2
+    rightHandle.position.x = 0.13 * scale   // Move inward to connect to blade
+    rightHandle.position.y = -0.15 * scale  // Move down to base of blade
+    rightHandle.rotation.z = -Math.PI / 6   // Rotate to align with blade angle
     scissorsGroup.add(rightHandle)
     
     // Central pivot
