@@ -3,6 +3,21 @@ import path from 'path'
 import type { GameSession } from '../types/game'
 import type { TicTacToeGameState, RPSGameState } from '../types/games'
 
+// SQLite parameter types
+type SqliteValue = string | number | boolean | null | Buffer
+type SqliteParams = SqliteValue[]
+
+// SQLite result types
+interface SqliteRunResult {
+  lastID?: number
+  changes: number
+}
+
+// Row data from database queries
+interface DbRow {
+  [key: string]: SqliteValue
+}
+
 // SQLite database instance
 let db: sqlite3.Database | null = null
 let initializationPromise: Promise<sqlite3.Database> | null = null
@@ -126,7 +141,7 @@ async function initializeDatabase(): Promise<sqlite3.Database> {
 }
 
 // Helper function to run database queries
-async function runQuery(sql: string, params: any[] = []): Promise<any> {
+async function runQuery(sql: string, params: SqliteParams = []): Promise<SqliteRunResult> {
   try {
     const database = await initializeDatabase()
     if (!database) {
@@ -144,14 +159,14 @@ async function runQuery(sql: string, params: any[] = []): Promise<any> {
   } catch (error) {
     // In test environment, don't throw for certain SQLite errors
     if (process.env.NODE_ENV === 'test' && error instanceof Error && error.message.includes('no such table')) {
-      return { lastID: null, changes: 0 }
+      return { lastID: undefined, changes: 0 }
     }
     throw error
   }
 }
 
 // Helper function to get single row
-async function getRow(sql: string, params: any[] = []): Promise<any> {
+async function getRow(sql: string, params: SqliteParams = []): Promise<DbRow | undefined> {
   try {
     const database = await initializeDatabase()
     if (!database) {
@@ -162,7 +177,7 @@ async function getRow(sql: string, params: any[] = []): Promise<any> {
         if (err) {
           reject(err)
         } else {
-          resolve(row)
+          resolve(row as DbRow | undefined)
         }
       })
     })
@@ -176,7 +191,7 @@ async function getRow(sql: string, params: any[] = []): Promise<any> {
 }
 
 // Helper function to get all rows
-async function getAllRows(sql: string, params: any[] = []): Promise<any[]> {
+async function getAllRows(sql: string, params: SqliteParams = []): Promise<DbRow[]> {
   try {
     const database = await initializeDatabase()
     if (!database) {
@@ -187,7 +202,7 @@ async function getAllRows(sql: string, params: any[] = []): Promise<any[]> {
         if (err) {
           reject(err)
         } else {
-          resolve(rows || [])
+          resolve((rows || []) as DbRow[])
         }
       })
     })
@@ -204,7 +219,7 @@ async function getAllRows(sql: string, params: any[] = []): Promise<any[]> {
 export async function getTicTacToeGame(gameId: string): Promise<GameSession<TicTacToeGameState> | undefined> {
   try {
     const row = await getRow('SELECT game_session FROM tic_tac_toe_games WHERE id = ?', [gameId])
-    if (row) {
+    if (row && typeof row.game_session === 'string') {
       return JSON.parse(row.game_session)
     }
     return undefined
@@ -234,7 +249,9 @@ export async function setTicTacToeGame(gameId: string, gameSession: GameSession<
 export async function getAllTicTacToeGames(): Promise<GameSession<TicTacToeGameState>[]> {
   try {
     const rows = await getAllRows('SELECT game_session FROM tic_tac_toe_games ORDER BY updated_at DESC')
-    return rows.map(row => JSON.parse(row.game_session))
+    return rows
+      .filter(row => typeof row.game_session === 'string')
+      .map(row => JSON.parse(row.game_session as string))
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
       console.error('Error getting all tic-tac-toe games:', error)
@@ -259,7 +276,7 @@ export async function deleteTicTacToeGame(gameId: string): Promise<boolean> {
 export async function getRPSGame(gameId: string): Promise<GameSession<RPSGameState> | undefined> {
   try {
     const row = await getRow('SELECT game_session FROM rps_games WHERE id = ?', [gameId])
-    if (row) {
+    if (row && typeof row.game_session === 'string') {
       return JSON.parse(row.game_session)
     }
     return undefined
@@ -289,7 +306,9 @@ export async function setRPSGame(gameId: string, gameSession: GameSession<RPSGam
 export async function getAllRPSGames(): Promise<GameSession<RPSGameState>[]> {
   try {
     const rows = await getAllRows('SELECT game_session FROM rps_games ORDER BY updated_at DESC')
-    return rows.map(row => JSON.parse(row.game_session))
+    return rows
+      .filter(row => typeof row.game_session === 'string')
+      .map(row => JSON.parse(row.game_session as string))
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
       console.error('Error getting all RPS games:', error)

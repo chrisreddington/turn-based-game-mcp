@@ -108,9 +108,39 @@ export default function HomePage() {
           
           <div className="pt-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-4">
-              How It Works
+              🎮 2D and 3D Gaming Experience
             </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+              Each game offers both traditional 2D and immersive 3D modes. Switch seamlessly between 
+              views during gameplay, or choose your preferred experience when creating or joining games.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-2xl">📱</span>
+                  <h3 className="font-bold text-slate-900 dark:text-white">2D Mode</h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Classic board layout with clean UI, perfect for strategic focus and fast gameplay.
+                </p>
+              </div>
+              
+              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-2xl">🎮</span>
+                  <h3 className="font-bold text-slate-900 dark:text-white">3D Mode</h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Immersive full-screen experience with camera controls, animations, and stunning visuals.
+                </p>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+              AI-Powered Strategic Gaming
+            </h3>
+            <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed">
               Play against an AI opponent powered by a Model Context Protocol (MCP) server. 
               When it&apos;s the AI&apos;s turn, the game will pause and wait for you to use your AI assistant 
               (configured with our MCP server) to make strategic moves. Experience intelligent 

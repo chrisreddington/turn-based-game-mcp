@@ -15,7 +15,7 @@ export const WEB_API_BASE = process.env.WEB_API_BASE || 'http://localhost:3000'
  * @returns Promise resolving to the JSON response
  * @throws Error if the request fails or returns non-2xx status
  */
-export async function httpGet<T = any>(url: string): Promise<T> {
+export async function httpGet<T = unknown>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -31,7 +31,7 @@ export async function httpGet<T = any>(url: string): Promise<T> {
  * @returns Promise resolving to the JSON response
  * @throws Error if the request fails or returns non-2xx status
  */
-export async function httpPost<T = any>(url: string, data: unknown): Promise<T> {
+export async function httpPost<T = unknown>(url: string, data: unknown): Promise<T> {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
