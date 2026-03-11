@@ -41,7 +41,7 @@
     "eslint": "^9.39.2",
     "fix-esm-import-path": "^1.10.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   },
   "dependencies": {
