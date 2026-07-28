@@ -44,7 +44,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^27.4.0",
-    "postcss": "^8.4.40",
+    "postcss": "^8.5.18",
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
